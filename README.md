@@ -12,6 +12,11 @@ This library contains three main components:
 
 All library components should work in node and the browser. This library should also work within Cloudflare workers, but that is currently untested.
 
+Package is available on NPM as **@cmdcode/crypto-sessions** with CDN support:
+```html
+<script src="https://unpkg.com/@cmdcode/crypto-sessions"></script>
+```
+
 ### Fetch Client
 
 For traditional fetch requests, this library provides a `SecureFetch` function that wraps the traditional `fetch()` method API.
