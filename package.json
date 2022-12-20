@@ -9,7 +9,7 @@
     "signatures",
     "library"
   ],
-  "version": "1.0.3",
+  "version": "1.0.4",
   "main": "./dist/main.js",
   "unpkg": "./dist/bundle.min.js",
   "types": "./dist/types/index.d.ts",
@@ -17,6 +17,11 @@
     "import": "./dist/module.js",
     "require": "./dist/main.js"
   },
+  "files": [
+    "README.md",
+    "LICENSE",
+    "dist"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/cmdruid/crypto-sessions.git"
