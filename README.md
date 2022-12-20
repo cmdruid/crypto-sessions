@@ -97,7 +97,7 @@ const HOST_NAME   = process.env.CRYPTO_SESSION_HOST
 // The private key is used to sign responses, plus decrypt traffic.
 const SESSION_KEY = process.env.CRYPTO_SESSION_KEY
 
-/* Example of a generic middleware function for express. */
+/* Example of a generic middleware function. */
 
 export async function useMiddleWare(
   req: Request, res: Response, next: NextFunction
@@ -105,7 +105,7 @@ export async function useMiddleWare(
   try {
     // Apply middleware
     await useCryptoAuth(req, res)
-    // Return express next function.
+    // Return next function.
     return next()
   } catch (err) {
     // Catch any errors, return failed response.
@@ -147,27 +147,27 @@ app.get('http://localhost:3001/api/hello?name=world!', async (
 })
 ```
 
-Example of using `useExpressMiddleware` helper method with Express.
+Example of using `useAuthWithExpress` helper method with Express.
 
 ```ts
 // Example import of the middleware.
-import { useExpressMiddleWare } from ''
+import { useAuthWithExpress } from '@cmdcode/crypto-sessions'
 
 // Example configuration of the express server.
 const app = express()
 
 app.use(express.urlencoded())
 app.use(express.json())
-app.use(useExpressMiddleware)
+app.use(useAuthWithExpress)
 
 app.listen(3000)
 ```
 
-Example of using `useNextMiddleware` helper method with NextJs.
+Example of using `useAuthWithNext` middleware method with NextJs.
 
 ```ts
 // Example import of the middleware.
-import { useNextMiddleware } from ''
+import { useAuthWithNext } from '@cmdcode/crypto-sessions'
 
 // Example of wrapping the Next API method.
 async function helloAPI(
@@ -179,7 +179,7 @@ async function helloAPI(
 }
 
 // The middleware is used to wrap the method export.
-export default useNextMiddleware(helloAPI)
+export default useAuthWithNext(helloAPI)
 ```
 
 ## Questions / Issues
