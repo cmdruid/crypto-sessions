@@ -10,6 +10,8 @@ This library contains three main components:
   2. Session handler.
   3. Server middleware.
 
+All library components should work in node and the browser. This library should also work within Cloudflare workers, but that is currently untested.
+
 ### Fetch Client
 
 For traditional fetch requests, this library provides a `SecureFetch` function that wraps the traditional `fetch()` method API.
@@ -98,7 +100,7 @@ You can use the `encode` and `decode` methods on the `CryptoSession` object to e
 
 ### Server Middleware
 
-For convenience, this package includes a generic middleware function, plus a wrapper for Express `(req, res, next)` and NextJs `(req, res)` style servers.
+For convenience, this package includes a generic middleware function, plus a wrapper for **Express** `(req, res, next)` and **NextJs** `(req, res)` style servers.
 
 ```ts
 import { useCryptoAuth } from '@cmdcode/crypto-sessions'
@@ -206,4 +208,21 @@ Feel free to ask questions and submit issues. All are welcome!
 Looking for contributors. Feel free to contribute!
 
 ## Resources
-Coming soon!
+
+This project aims to be very light-weight with minimal dependencies.
+
+**@noble/secp256k1**  
+Implementation of secp256k1 in Javascript.  
+https://github.com/paulmillr/noble-secp256k1
+
+**zod**  
+Run-time schema validation with static type inference.  
+https://github.com/colinhacks/zod
+
+**Crypto-Utils**  
+Utility library that wraps WebCrypto and @noble/secp.  
+https://github.com/cmdruid/crypto-utils
+
+**Buff-Utils**  
+Utility library for working with byte arrays.  
+https://github.com/cmdruid/bytes-utils
