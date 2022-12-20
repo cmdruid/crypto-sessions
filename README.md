@@ -47,14 +47,14 @@ const res : SecureResponse = await fetch(
 )
 ```
 
-On the surface, the new fetch method should work as expected. When receiving a response, the `Response` object will look familiar, though slightly different.
+On the surface, the new fetch method works similar, and can be configured using the typical `Request` API. The `Response` object will also be similar, but with a couple extra fields.
 
 ```ts
 // The response will look slightly different.
 interface SecureResponse {
-  data? : any     // Data returned from the server, if any.
-  err?  : object  // Error returned from the client, if any.
-  ...Response     // Rest of Response object.
+  data? : any  // Data returned from the server, if any.
+  err?  : any  // Error returned from the client, if any.
+  ...Response  // Rest of Response object.
 }
 ```
 
@@ -66,8 +66,9 @@ Underneath the hood, the `SecureFetch` client is using your keys to create a new
 // Example import of the CryptoSession object.
 import { CryptoSession } from '@cmdcode/crypto-sessions'
 
-// Create a client <-> peer CryptoSession instance.
-// Your peer will need to create a matching instance.
+/* Create a client <-> peer CryptoSession instance.
+ * Your peer must also configure a matching instance.
+ */
 const session = new CryptoSession(
   // Used for encrypting traffic end-to-end.
   peerPublickey : string | Uint8Array,
@@ -75,39 +76,42 @@ const session = new CryptoSession(
   yourSecretKey : string | Uint8Array
 )
 
-// Encoding a data payload to send outbound.
+// Encode a data payload to send outbound.
 const { 
   token : string, // Base64urlEncode(clientPubKey + encrypted(signature))
   data  : string  // Base64urlEncode(encrypted(payload))
 } = await session.encode(payload : string)
 
-// Decoding and verify an incoming payload.
+// Decode and verify an incoming payload.
 const payload = await session.decode(token, data)
 ```
 
 When sending a request, `yourSecretKey` is used to perform the following:
   1. Sign the full URL of the request (including query strings).
-  2. Sign a sha256 hash digest of res.body value (POST).
+  2. Sign a sha256 hash digest of res.body contents (POST only).
   3. Provide a compressed public key for verification and encryption.
 
 The `peerPublicKey` is used to encrypt the outgoing payload 
 and signature, plus decrypt and verify the incoming response.
 
-You can use the `encode` and `decode` methods on the `CryptoSession` object to establish an end-to-end encrypted and signed connection directly with another peer (ex. over websockets or nostr :-)), or your can use it to authenticate with a traditional HTTP server using a middleware function.
+You can use the `encode` and `decode` methods on the `CryptoSession` object to establish an end-to-end encrypted and signed connection directly with another peer (ex. over websockets or nostr :-)), or your can use it to authenticate with a traditional HTTP server via a middleware function.
 
 ### Server Middleware
 
-For convenience, this package includes a generic middleware function, plus a wrapper for Express (req, res, next) and NextJs (req, res) style servers.
+For convenience, this package includes a generic middleware function, plus a wrapper for Express `(req, res, next)` and NextJs `(req, res)` style servers.
 
 ```ts
 import { useCryptoAuth } from '@cmdcode/crypto-sessions'
 
 /* We have to set some environment variables first. */
 
-// The host name is signed by the client, so this must be correct.
-const HOST_NAME   = process.env.CRYPTO_SESSION_HOST
-// The private key is used to sign responses, plus decrypt traffic.
-const SESSION_KEY = process.env.CRYPTO_SESSION_KEY
+// The host name is signed by the 
+// client, so this must be correct.
+process.env.CRYPTO_SESSION_HOST
+
+// The private key is used to sign 
+// responses, plus decrypt traffic.
+process.env.CRYPTO_SESSION_KEY
 
 /* Example of a generic middleware function. */
 
@@ -127,7 +131,7 @@ export async function useMiddleWare(
 }
 ```
 
-The `useCryptoAuth` middleware will check `req.headers.authorization` for any tokens, and use it to decrypt and verify the request. Once verified, the middleware will store the client's `CryptoSession` instance in `req.session`, plus helper methods in `res.secureSend` and `res.secureJson`.
+The `useCryptoAuth` middleware will check `req.headers.authorization` for any tokens, then use it to decrypt and verify the request. Once verified, the middleware will store the client's `CryptoSession` instance in `req.session`, plus helper methods `res.secureSend` and `res.secureJson`.
 
 ```ts
 // Example express API endpoint.
@@ -152,14 +156,15 @@ app.get('http://localhost:3001/api/hello?name=world!', async (
     .cipher => Cipher  // Helper method used for encryption. 
     .signer => Signer  // Helper method used for ECDSA/Schnorr signatures.
 
-  // In addition, you have access to two response helpers.
+  // In addition, you have access to a few response helpers.
+  // Use these methods to send a secure response to the client.
   res
     .secureSend(data: string, status: number) => Promise<Response>
     .secureJson(data: object, status: number) => Promise<Response>
 })
 ```
 
-Example of using `useAuthWithExpress` helper method with Express.
+Example of using `useAuthWithExpress` middleware method with Express.
 
 ```ts
 // Example import of the middleware.
@@ -181,7 +186,7 @@ Example of using `useAuthWithNext` middleware method with NextJs.
 // Example import of the middleware.
 import { useAuthWithNext } from '@cmdcode/crypto-sessions'
 
-// Example of wrapping the Next API method.
+// Example Next API method.
 async function helloAPI(
   req : NextApiRequest, 
   res : NextApiResponse
