@@ -1,9 +1,9 @@
 import express, { Express, Request, Response } from 'express'
 import { Buff } from '@cmdcode/buff-utils'
 import { Keys } from '@cmdcode/crypto-utils'
-import { useAuthwithExpress } from '../../src/middleware.js'
+import { useAuthWithExpress } from '../../src/middleware.js'
 
-const serverKeys = Keys.generateKeyPair()
+const serverKeys = Keys.genKeyPair()
 
 export const peerKey = serverKeys.publicHex
 
@@ -13,7 +13,7 @@ export const app: Express = express()
 
 app.use(express.urlencoded({ extended: false }))
 app.use(express.json({ limit: 1000 }))
-app.use(useAuthwithExpress)
+app.use(useAuthWithExpress)
 
 app.get('/getSend', async (req: Request, res: Response) => {
   console.log(req.url, req.query)

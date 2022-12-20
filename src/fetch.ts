@@ -3,7 +3,7 @@ import { CryptoSession } from './session.js'
 import { schema } from './schema.js'
 import { Buff } from '@cmdcode/buff-utils'
 
-export interface FetchOptions extends RequestInit {
+export interface SecureFetchOptions extends RequestInit {
   hostname?: string
   fetcher?: (
     input: RequestInfo | URL,
@@ -18,14 +18,9 @@ export interface SecureBody {
   url: string
 }
 
-export interface SecureResponse {
-  ok: boolean
-  status: number
-  statusText: string
-  headers: Headers
-  data?: object | string
-  err?: unknown
-  res: Response
+export interface SecureResponse extends Response {
+  data? : object | string
+  err?  : any
 }
 
 export class SecureFetch extends Function {
@@ -36,7 +31,7 @@ export class SecureFetch extends Function {
 
   static generate(
     peerKey: string | Uint8Array,
-    options?: FetchOptions
+    options?: SecureFetchOptions
   ): SecureFetch {
     return new SecureFetch(peerKey, Util.getRandBytes(32), options)
   }
@@ -44,7 +39,7 @@ export class SecureFetch extends Function {
   constructor(
     peerKey: string | Uint8Array,
     secretKey: string | Uint8Array,
-    options?: FetchOptions
+    options?: SecureFetchOptions
   ) {
     // Unpack custom params from options object.
     const { hostname, fetcher, ...opts } = options ?? {}
@@ -76,7 +71,7 @@ export class SecureFetch extends Function {
 
   async fetch(
     path: RequestInfo | URL,
-    options: FetchOptions
+    options: SecureFetchOptions
   ): Promise<SecureResponse> {
     if (path instanceof URL) {
       path = path.toString()
@@ -120,20 +115,16 @@ export class SecureFetch extends Function {
     )
   }
 
-  async handleResponse(res: Response): Promise<SecureResponse> {
-    const { ok, status, statusText, headers } = res
-    let data, err
+  async handleResponse(res: SecureResponse): Promise<SecureResponse> {
     try {
-      const contentType = headers.get('content-type') ?? ''
-      const token = schema.token.parse(headers.get('authorization'))
+      const contentType = res.headers.get('content-type') ?? ''
+      const token = schema.token.parse(res.headers.get('authorization'))
       const payload = await res.text()
-      data = await this.session.decode(token, payload)
+      res.data = await this.session.decode(token, payload)
       if (contentType.startsWith('application/json')) {
-        data = JSON.parse(data)
+        res.data = JSON.parse(res.data)
       }
-    } catch (err) {
-      console.log(err)
-    }
-    return { ok, status, statusText, headers, res, data, err }
+    } catch (err) { res.err = err }
+    return res
   }
 }

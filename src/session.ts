@@ -1,5 +1,5 @@
 import { Buff } from '@cmdcode/buff-utils'
-import { Cipher, Hash, Signer, Util } from '@cmdcode/crypto-utils'
+import { Cipher, Hash, Keys, Signer, Util } from '@cmdcode/crypto-utils'
 import { b64decode, returnBytes } from './utils.js'
 
 const ec = new TextEncoder()
@@ -29,7 +29,7 @@ export class CryptoSession {
 
   constructor(peerKey: string | Uint8Array, secretKey: string | Uint8Array) {
     this.peerKey = returnBytes(peerKey)
-    this.secret = returnBytes(secretKey)
+    this.secret  = returnBytes(secretKey)
   }
 
   get cipher(): Cipher {
@@ -44,12 +44,13 @@ export class CryptoSession {
     return this.signer.publicKey
   }
 
-  get pkh(): Promise<Uint8Array> {
-    return Hash.hash160(this.pubKey)
+  get sharedSecret(): Promise<Uint8Array> {
+    return Keys.getSharedSecret(this.secret, this.peerKey)
   }
 
-  get sharedKey(): Promise<Uint8Array> {
-    return Hash.sha256(this.peerKey)
+  get sharedHash(): Promise<Uint8Array> {
+    return this.sharedSecret
+      .then(async (bytes) => Hash.sha256(bytes))
   }
 
   async getSignature(token: string): Promise<Uint8Array> {

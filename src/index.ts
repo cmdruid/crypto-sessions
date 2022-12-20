@@ -1,16 +1,18 @@
 import { CryptoSession } from './session.js'
-import { SecureFetch } from './fetch.js'
+import { SecureFetch }   from './fetch.js'
+import { Keys } from '@cmdcode/crypto-utils'
 
 import {
   useCryptoAuth,
-  useAuthwithExpress,
-  useAuthwithNext,
+  useAuthWithExpress,
+  useAuthWithNext,
 } from './middleware.js'
 
 export {
+  Keys,
   SecureFetch,
   CryptoSession,
   useCryptoAuth,
-  useAuthwithExpress,
-  useAuthwithNext,
+  useAuthWithExpress,
+  useAuthWithNext,
 }

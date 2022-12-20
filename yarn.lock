@@ -194,10 +194,10 @@
   resolved "https://registry.yarnpkg.com/@cmdcode/buff-utils/-/buff-utils-1.1.4.tgz#02aa1ccef16d7ce24801e5e5b3477a355b2462e1"
   integrity sha512-zdBfzNy29cn1thczROBS2WAgPhTqX06S8XfYYwzmuHFbxUDBNHCmntlD8iBEiElahpGu/qu0L2aO2U8zn/uznQ==
 
-"@cmdcode/crypto-utils@^1.2.9":
-  version "1.2.9"
-  resolved "https://registry.yarnpkg.com/@cmdcode/crypto-utils/-/crypto-utils-1.2.9.tgz#b4f54ebed65186762535a3b7fcbc9faf1e8eff41"
-  integrity sha512-FiGfKh+kq79qsozY9TnTp0e1UdaG9JstGDdRLNRQfbtdG3vmrO7pDKkiMVKSIF5Ti9qegW720QBlU7ISI5JMYQ==
+"@cmdcode/crypto-utils@^1.3.0":
+  version "1.3.0"
+  resolved "https://registry.yarnpkg.com/@cmdcode/crypto-utils/-/crypto-utils-1.3.0.tgz#4d6ba17ca143cb2ff9859d7607e915eb13534d17"
+  integrity sha512-teiewZBXw5x04Gactx46Rrw2f39WviO9Q2A6Jej+HiIH+UZwoZ1+Rdmf8Ukf+PjEVnDjP0F9hUkbRnMAeh/DNQ==
   dependencies:
     "@cmdcode/buff-utils" "*"
     "@noble/secp256k1" "^1.7.0"

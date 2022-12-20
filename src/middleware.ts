@@ -30,7 +30,7 @@ export interface SecureNextResponse {
   secureSend: (payload: string, status?: number) => void
 }
 
-export async function useAuthwithExpress(
+export async function useAuthWithExpress(
   req: Request,
   res: Response,
   next: NextFunction
@@ -43,11 +43,11 @@ export async function useAuthwithExpress(
     return next()
   } catch (err) {
     console.log(err)
-    return res.status(400).send({ err })
+    return res.status(401).send({ err })
   }
 }
 
-export function useAuthwithNext(handler: Function): unknown {
+export function useAuthWithNext(handler: Function): unknown {
   return async (req: Request, res: Response) => {
     try {
       // Apply middleware
@@ -56,7 +56,7 @@ export function useAuthwithNext(handler: Function): unknown {
       return handler(req, res)
     } catch (err) {
       console.log(err)
-      return res.json({ err })
+      return res.status(401).send({ err })
     }
   }
 }
@@ -75,6 +75,8 @@ export async function useCryptoAuth(
     const { authorization: token } = schema.headers.parse(headers)
     // Establish a session using the token and server's private key.
     const session = CryptoSession.withToken(token, PRIVATE_KEY)
+    // Save our session object to the request object.
+    req.session = session
     // Handle the request based on GET or POST method.
     if (method === 'GET') {
       const isValid = await session.verify(token, ec.encode(HOST_NAME + url))
@@ -88,8 +90,6 @@ export async function useCryptoAuth(
         req.body = type === 'object' ? JSON.parse(decoded) : decoded
       }
     }
-    // Save our session object to the request object.
-    req.session = session
     // Add a secure session helper to the response object.
     res.secureSend = async (payload: string, status?: number) => {
       const { token, data } = await session.encode(payload)

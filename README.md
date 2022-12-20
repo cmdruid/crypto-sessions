@@ -4,48 +4,50 @@ Secure end-to-end client sessions & API calls. No cookies, storage, or state man
 
 ## How to Use
 
-For traditional fetch requests, this library provides a `SecureFetch` function that wraps the traditional `fetch()` API.
+For traditional fetch requests, this library provides a `SecureFetch` function that wraps the traditional `fetch()` method API.
 
 ```ts
 import { SecureFetch } from '@cmdcode/crypto-sessions'
 
-// Returns a secure fetch method for making API calls. 
+/* Returns a secure fetch method for making API calls. */
+
 const fetch = new SecureFetch(
   // Used for encrypting traffic end-to-end.
   serverPubkey    : string | Uint8Array,
   // Used for signing each request.
-  clientSecretKey : string | Uint8Array
+  clientSecretKey : string | Uint8Array,
+  // Extends the default Request object.
+  options? : SecureFetchOptions
 )
 
-// This new method should behave identical to fetch.
-const res = await fetch(
+/* Options for initializing SecureFetch. */
+
+interface SecureFetchOptions {
+  hostname? : string,    // Provides a default hostname to prepend to requests.
+  fetcher?  : Function,  // Use to set a custom fetcher method. Defaults to fetch.
+  ...Request             // All Request options work here, and act as defaults.
+}
+
+/* The new fetch method should act as a drop-in replacement for existing fetch. */
+
+const res : SecureResponse = await fetch(
   'http://localhost:3000/api/endpoint',
   { 
     method : 'GET' | 'POST',
     body   : JSON.stringify({ hello: 'world!' })
   }
 )
-
-// The default Fetch API has been extended with new options.
-const fetch = new SecureFetch(serverPubKey, clientSecretKey, {
-  hostname : 'string',   // Provides a default hostname to prepend to requests.
-  fetcher  : fetch       // Use to set a custom fetcher method. Defaults to fetch.
-  ...Request             // All Request options work here, and act as defaults.
-}
 ```
 
-On the surface, your new fetch method should work as expected. When receiving a response, the `Response` object will look slightly different.
+On the surface, the new fetch method should work as expected. When receiving a response, the `Response` object will look familiar, though slightly different.
 
 ```ts
 // The response will look slightly different.
-const {
-  data?  : any      // Data returned from the server, if any.
-  err?   : object   // Error returned from the client, if any.
-  ok     : boolean  // Boolean result from res.ok.
-  status : number   // Response code from res.status.
-  text   : string   // Response text from res.statusText.
-  res    : Response // Full Response object.
-} = res
+interface SecureResponse {
+  data? : any     // Data returned from the server, if any.
+  err?  : object  // Error returned from the client, if any.
+  ...Response     // Rest of Response object.
+}
 ```
 
 Underneath the hood, the `SecureFetch` client is using your keys to create a new `CryptoSession` object. This object is used to sign and encrypt each request to the server, plus decrypt and verify the server response.
@@ -123,28 +125,26 @@ app.get('http://localhost:3001/api/hello?name=world!', async (
 ) : => {
   // You have access to the client/server CryptoSession object.
   const {
-    clientKey     // The public key of the client.
-    sharedSecret  // The shared key of the client <-> server.
-    sharedKey     // The sha256(sharedSecret) of the session.
+    peerKey       // The public key of the client.
     pubKey        // The public key of your server.
-    pkHash        // The hash160(pubKey) of the server.
+    sharedSecret  // The shared secret between the client <-> server.
+    sharedHash    // The sha256 hash of the shared secret.
   } = req.session
 
   // You also have access to all CryptoSession methods.
   req.session
     .encode()   // Same encoding method as above.
     .decode()   // Same decoding method as above.
-    .encrypt()  // Encrypt a payload using the current CryptoSession.
-    .decrypt()  // Decrypt a payload using the current CryptoSession.
+    .encrypt()  // Encrypt an outgoing payload using current CryptoSession.
+    .decrypt()  // Decrypt an incoming payload using current CryptoSession.
     .cipher => Cipher  // Helper method used for encryption. 
     .signer => Signer  // Helper method used for ECDSA/Schnorr signatures.
+
+  // In addition, you have access to two response helpers.
+  res
+    .secureSend(data: string, status: number) => Promise<Response>
+    .secureJson(data: object, status: number) => Promise<Response>
 })
-
-// In addition, you have access to two response helpers.
-res
-  .secureSend(data: string, status: number) => Promise<Response>
-  .secureJson(data: object, status: number) => Promise<Response>
-
 ```
 
 Example of using `useExpressMiddleware` helper method with Express.
