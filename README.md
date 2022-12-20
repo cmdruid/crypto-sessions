@@ -4,11 +4,11 @@ Secure end-to-end client sessions & API calls. No cookies, storage, or state man
 
 ## How to Use
 
-This library contains three maincomponents: 
+This library contains three main components: 
 
   1. A fetch client.
-  2. Server middleware.
-  3. Session object (used to establish a secure session).
+  2. Session handler.
+  3. Server middleware.
 
 ### Fetch Client
 
@@ -58,7 +58,7 @@ interface SecureResponse {
 }
 ```
 
-### Crypto Session
+### Session Handler
 
 Underneath the hood, the `SecureFetch` client is using your keys to create a new `CryptoSession` object. This object is used to sign and encrypt each request to the server, plus decrypt and verify the server response.
 
@@ -95,7 +95,7 @@ and signature, plus decrypt and verify the incoming response.
 
 You can use the `encode` and `decode` methods on the `CryptoSession` object to establish an end-to-end encrypted and signed connection directly with another peer (ex. over websockets or nostr :-)), or your can use it to authenticate with a traditional HTTP server using a middleware function.
 
-### Middleware
+### Server Middleware
 
 For convenience, this package includes a generic middleware function, plus a wrapper for Express (req, res, next) and NextJs (req, res) style servers.
 
