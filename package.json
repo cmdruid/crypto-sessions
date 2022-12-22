@@ -9,7 +9,7 @@
     "signatures",
     "library"
   ],
-  "version": "1.1.1",
+  "version": "1.1.2",
   "main": "./dist/main.js",
   "unpkg": "./dist/bundle.min.js",
   "types": "./dist/types/index.d.ts",
@@ -34,12 +34,11 @@
     "build": "rollup -c rollup.config.ts --configPlugin typescript",
     "clean": "rm -rf dist/* coverage .nyc_output",
     "scratch": "node --loader ts-node/esm --no-warnings test/scratch.ts",
-    "format": "prettier --write .",
     "lint": "eslint . --ext .ts",
     "tape": "node --loader ts-node/esm --no-warnings -r dotenv/config test/index.test.js",
     "test": "nyc --reporter=lcov --require ts-node/register yarn tape | tap-spec; nyc report ---reporter=text",
     "types": "tsc",
-    "release": "yarn clean && yarn types && yarn lint && yarn build && yarn test"
+    "release": "yarn lint && yarn test && yarn clean && yarn types && yarn build"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^23.0.2",
