@@ -8,7 +8,7 @@ export default function fetchTest(): void {
 
     t.plan(4)
 
-    const simpleFetch = SecureFetch.generate(peerKey)
+    const { fetch: simpleFetch } = SecureFetch.generate(peerKey)
 
     const customFetch = new SecureFetch(peerKey, Buff.random(32), {
       hostname: 'http://localhost:3001',

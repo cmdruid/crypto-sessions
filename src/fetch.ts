@@ -3,10 +3,15 @@ import { CryptoSession } from './session.js'
 import { Schema } from './schema.js'
 import { Token }  from './token.js'
 
-type Fetcher = (
+export type Fetcher = (
   input: RequestInfo | URL,
   init?: RequestInit | undefined
 ) => Promise<Response>
+
+export interface SecureInstance { 
+  fetch   : SecureFetch, 
+  session : CryptoSession 
+}
 
 export interface SecureFetchOptions extends RequestInit {
   hostname? : string
@@ -25,12 +30,23 @@ export class SecureFetch extends Function {
   public readonly fetcher   : Fetcher
   public options : RequestInit
 
+  static create(
+    peerKey   : string | Uint8Array,
+    secretKey : string | Uint8Array,
+    options?  : SecureFetchOptions
+  ) : SecureInstance {
+    return {
+      fetch   : new SecureFetch(peerKey, secretKey, options),
+      session : new CryptoSession(peerKey, secretKey)
+    }
+  }
+
   static generate(
     peerKey  : string | Uint8Array,
     options? : SecureFetchOptions
-  ) : SecureFetch {
+  ) : SecureInstance {
     const privKey = Buff.random(32).toBytes()
-    return new SecureFetch(peerKey, privKey, options)
+    return SecureFetch.create(peerKey, privKey, options)
   }
 
   constructor(

@@ -6,7 +6,7 @@ import {
   Cipher, Hash, Keys, Signer
 } from '@cmdcode/crypto-utils'
 
-type Payload = string | object
+export type Payload = string | object
 
 export interface EncodedData {
   data  : string
@@ -19,6 +19,7 @@ export interface DecodedData {
 }
 
 export class CryptoSession {
+
   private readonly secret: Uint8Array
   public peerKey : Uint8Array
 
@@ -76,6 +77,10 @@ export class CryptoSession {
   get sharedHex(): Promise<string> {
     return this.sharedHash
       .then(bytes => Buff.buff(bytes).toHex())
+  }
+
+  isWith(key : string) : boolean {
+    return key === this.peerHex
   }
 
   async encrypt(data: Uint8Array): Promise<Uint8Array> {

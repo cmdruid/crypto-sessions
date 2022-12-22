@@ -1,7 +1,7 @@
 import { Buff }   from '@cmdcode/buff-utils'
 import { Schema } from './schema.js'
 
-type TokenString = string | null | undefined
+export type TokenString = string | null | undefined
 
 export interface TokenData {
   publicKey : Uint8Array

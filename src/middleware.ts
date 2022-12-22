@@ -6,11 +6,6 @@ import { Token } from './token.js'
 const HOST_NAME   = process.env.CRYPTO_SESSION_HOST ?? 'http://localhost:3001'
 const PRIVATE_KEY = checkSessionKey(process.env.CRYPTO_SESSION_KEY)
 
-export interface SecuredSend {
-  send : (payload : string) => Promise<Response>
-  json : (payload : object) => Promise<Response>
-}
-
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
@@ -25,6 +20,11 @@ declare global {
   }
 }
 
+export interface SecuredSend {
+  send : (payload : string) => Promise<Response>
+  json : (payload : object) => Promise<Response>
+}
+
 export async function useWithExpress(
   req  : Request,
   res  : Response,
@@ -35,7 +35,9 @@ export async function useWithExpress(
     // Apply middleware
     await useCryptoSession(req, res)
     // Use express next function.
-    return next()
+    if (req.isAuthenticated) 
+      return next()
+    return res.status(401).end()
   } catch (err) {
     console.log('[server]:', err)
     return res.status(401).end()
