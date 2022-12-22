@@ -1,35 +1,47 @@
-import { Buff } from '@cmdcode/buff-utils'
-import { Cipher, Hash, Keys, Signer, Util } from '@cmdcode/crypto-utils'
-import { b64decode, returnBytes } from './utils.js'
+import { Buff }   from '@cmdcode/buff-utils'
+import { Token }  from './token.js'
+import { schema } from './schema.js'
 
-const ec = new TextEncoder()
+import { 
+  Cipher, Hash, Keys, Signer
+} from '@cmdcode/crypto-utils'
+
 const dc = new TextDecoder()
 
 export interface PayloadData {
-  token: string
-  data: string
+  token : string
+  data  : string
+  isEncoded? : boolean
 }
 
 export class CryptoSession {
   private readonly secret: Uint8Array
-  public peerKey: Uint8Array
+  public peerKey : Uint8Array
 
-  static generate(peerKey: string | Uint8Array): CryptoSession {
-    return new CryptoSession(peerKey, Util.getRandBytes(32))
+  static generate(
+    peerKey : string | Uint8Array
+  ) : CryptoSession {
+    return new CryptoSession(peerKey, Buff.random(32))
   }
 
   static withToken(
-    token: string,
-    secretKey: string | Uint8Array
+    b64token  : string,
+    secretKey : string | Uint8Array
   ): CryptoSession {
-    const tokenBytes = b64decode(token)
-    const peerKey = tokenBytes.slice(0, 33)
+    const { publicKey: peerKey } = Token.import(b64token)
     return new CryptoSession(peerKey, secretKey)
   }
 
-  constructor(peerKey: string | Uint8Array, secretKey: string | Uint8Array) {
-    this.peerKey = returnBytes(peerKey)
-    this.secret  = returnBytes(secretKey)
+  constructor(
+    peerKey   : string | Uint8Array, 
+    secretKey : string | Uint8Array
+  ) {
+    this.peerKey = Buff.normalizeBytes(peerKey)
+    this.secret  = Buff.normalizeBytes(secretKey)
+  }
+
+  get peerHex(): string {
+    return Buff.buff(this.peerKey).toHex()
   }
 
   get cipher(): Cipher {
@@ -44,6 +56,10 @@ export class CryptoSession {
     return this.signer.publicKey
   }
 
+  get pubHex(): string {
+    return Buff.buff(this.pubKey).toHex()
+  }
+
   get sharedSecret(): Promise<Uint8Array> {
     return Keys.getSharedSecret(this.secret, this.peerKey)
   }
@@ -53,10 +69,9 @@ export class CryptoSession {
       .then(async (bytes) => Hash.sha256(bytes))
   }
 
-  async getSignature(token: string): Promise<Uint8Array> {
-    const tokenBytes = b64decode(token)
-    const encSig = tokenBytes.slice(33)
-    return this.decrypt(encSig)
+  get sharedHex(): Promise<string> {
+    return this.sharedHash
+      .then(bytes => Buff.buff(bytes).toHex())
   }
 
   async encrypt(data: Uint8Array): Promise<Uint8Array> {
@@ -67,33 +82,51 @@ export class CryptoSession {
     return this.cipher.decryptShared(this.peerKey, data)
   }
 
+  async sign(
+    payload: string | Uint8Array
+  ) : Promise<Uint8Array> {
+    const msg = Buff.normalizeData(payload)
+    const digest = await Hash.sha256(msg)
+    return this.signer.sign(digest)
+  }
+
+  async verify(
+    token   : string | Token,
+    payload : string | Uint8Array
+  ) : Promise<boolean> {
+    // If provided token is a string, convert to Token object.
+    if (typeof token === 'string') token = Token.import(token)
+    // Unpack the key and signature from token object.
+    const { publicKey, signature } = token
+    // Normalize the payload data and compute sha256 hash.
+    const msg = Buff.normalizeData(payload)
+    const digest = await Hash.sha256(msg)
+    // Return if signature is valid, throw if configured.
+    return Signer.verify(digest, publicKey, signature)
+  }
+
   async encode(payload: string): Promise<PayloadData> {
     // Create a digest of the payload and sign it.
-    const rawData = ec.encode(payload)
-    const encData = await this.encrypt(rawData)
-    const digest = await Hash.sha256(rawData)
-    const rawSig = await this.signer.sign(digest)
-    const encSig = await this.encrypt(rawSig)
-    // Return full token with encrypted payload
+    const rawData   = Buff.normalizeData(payload)
+    const signature = await this.sign(rawData)
+    const encData   = await this.encrypt(rawData)
+    const token     = new Token(this.pubKey, signature)
+    // Return signature token with encrypted payload.
     return {
-      token: Buff.join([this.pubKey, encSig]).toB64url(),
-      data: Buff.buff(encData).toB64url(),
+      token : token.encoded,
+      data  : Buff.buff(encData).toB64url(),
     }
   }
 
-  async decode(token: string, payload: string): Promise<string> {
+  async decode(
+    token   : string | Token, 
+    payload : string
+  ): Promise<string> {
     // Decode the token and payload into bytes.
-    const encData = b64decode(payload)
+    const encData = schema.decoded.parse(payload)
     const rawData = await this.decrypt(encData)
-    if (!(await this.verify(token, rawData))) {
-      throw TypeError('Payload signature failed to validate!')
-    }
+    const isValid = await this.verify(token, rawData)
+    if (!isValid) throw TypeError('Failed to validate signature!')
     return dc.decode(rawData)
-  }
-
-  async verify(token: string, bytes: Uint8Array): Promise<boolean> {
-    const rawSig = await this.getSignature(token)
-    const digest = await Hash.sha256(bytes)
-    return Signer.verify(digest, this.peerKey, rawSig)
   }
 }

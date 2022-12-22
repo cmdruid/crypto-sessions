@@ -1,107 +1,119 @@
-import { schema } from './schema.js'
 import { CryptoSession } from './session.js'
 import { Request, Response, NextFunction } from 'express'
+import { reviveData, checkSessionKey } from './utils.js'
+import { Token } from './token.js'
 
-const ec = new TextEncoder()
+const HOST_NAME   = process.env.CRYPTO_SESSION_HOST ?? 'http://localhost:3001'
+const PRIVATE_KEY = checkSessionKey(process.env.CRYPTO_SESSION_KEY)
+
+export interface SecuredSend {
+  send : (payload : string) => Promise<Response>
+  json : (payload : object) => Promise<Response>
+}
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
-    interface Request {
-      session: CryptoSession
+    export interface Request {
+      token   : Token
+      session : CryptoSession
+      isAuthenticated : boolean
     }
-    interface Response {
-      secureSend: (payload: string, status?: number) => Promise<Response>
-      secureJson: (payload: object, status?: number) => Promise<Response>
+    export interface Response {
+      secure : SecuredSend
     }
   }
 }
 
-export interface SecureNextRequest {
-  query: Partial<Record<string, string | string[]>>
-  cookies: Partial<Record<string, string>>
-  body: any
-  headers: Headers
-  method: string
-  url: string
-}
-
-export interface SecureNextResponse {
-  secureSend: (payload: string, status?: number) => void
-}
-
-export async function useAuthWithExpress(
-  req: Request,
-  res: Response,
-  next: NextFunction
+export async function useWithExpress(
+  req  : Request,
+  res  : Response,
+  next : NextFunction
   // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
 ): Promise<void | Response<any, Record<string, any>>> {
   try {
     // Apply middleware
-    await useCryptoAuth(req, res)
+    await useCryptoSession(req, res)
     // Use express next function.
     return next()
   } catch (err) {
-    console.log(err)
-    return res.status(401).send({ err })
+    console.log('error!')
+    return res.status(401).end()
   }
 }
 
-export function useAuthWithNext(handler: Function): unknown {
+export function useWithNext(handler: Function): unknown {
   return async (req: Request, res: Response) => {
     try {
       // Apply middleware
-      await useCryptoAuth(req, res)
+      await useCryptoSession(req, res)
       // Return handler to next router.
       return handler(req, res)
     } catch (err) {
       console.log(err)
-      return res.status(401).send({ err })
+      return res.status(401).end()
     }
   }
 }
 
-export async function useCryptoAuth(
+export async function useCryptoSession(
   req: Request,
   res: Response
 ): Promise<void> {
-  // Define environment variables.
-  const HOST_NAME = process.env.CRYPTO_SESSION_HOST ?? 'http://localhost:3001'
-  const PRIVATE_KEY = schema.secret.parse(process.env.CRYPTO_SESSION_KEY)
   // Unpack the request object.
-  const { body, headers, method, url } = req
-  // Extract the token from the request headers.
-  if (headers.authorization !== undefined) {
-    const { authorization: token } = schema.headers.parse(headers)
-    // Establish a session using the token and server's private key.
-    const session = CryptoSession.withToken(token, PRIVATE_KEY)
-    // Save our session object to the request object.
-    req.session = session
-    // Handle the request based on GET or POST method.
-    if (method === 'GET') {
-      const isValid = await session.verify(token, ec.encode(HOST_NAME + url))
-      if (!isValid) throw TypeError('Invalid signature!')
-    }
-    if (method === 'POST') {
-      // Check if body is encoded.
-      const { isEncoded, data, type } = body
-      if (isEncoded === true) {
-        const decoded = await session.decode(token, data)
-        req.body = type === 'object' ? JSON.parse(decoded) : decoded
-      }
-    }
-    // Add a secure session helper to the response object.
-    res.secureSend = async (payload: string, status?: number) => {
-      const { token, data } = await session.encode(payload)
+  const { body, method } = req
+  // Authenticate the request endpoint.
+  await getSessionToken(req, res)
+  // Validate request based on method.
+  if (method === 'GET') {
+    // If GET, validate the request url.
+    const payload = HOST_NAME + req.url
+    await req.session.verify(req.token, payload)
+    req.isAuthenticated = true
+  } 
+  if (method === 'POST') {
+    // If POST, validate the request body.
+    const content = await req.session.decode(req.token, body.data)
+    req.body = reviveData(content)
+    req.isAuthenticated = true
+  }
+}
+
+async function getSessionToken(
+  req : Request,
+  res : Response
+) : Promise<void> {
+  // Unpack all required values.
+  const { authorization } = req.headers
+  if (authorization !== undefined) {
+    // Initialzie token and session object.
+    req.token   = Token.fromHeaders(req.headers)
+    req.session = new CryptoSession(req.token.publicKey, PRIVATE_KEY)
+    req.isAuthenticated = false
+    // Add secured response helpers to the response object.
+    setSecuredResponse(req, res)
+  } else {
+    throw TypeError('Authorization header is undefined!')
+  }
+}
+
+function setSecuredResponse(
+  req : Request,
+  res : Response
+) : void {
+  res.secure = {
+    send: async (payload: string) => {
+      const { token, data } = await req.session.encode(payload)
       res.setHeader('content-type', 'text/plain')
       res.setHeader('authorization', token)
-      return res.status(status ?? 200).send(data)
-    }
-    res.secureJson = async (payload: object, status?: number) => {
-      const { token, data } = await session.encode(JSON.stringify(payload))
-      res.setHeader('content-type', 'application/json')
+      return res.send(data)
+    },
+    json:  async (payload: object) => {
+      const json = JSON.stringify(payload)
+      const { token, data } = await req.session.encode(json)
+      res.setHeader('content-type', 'text/plain')
       res.setHeader('authorization', token)
-      return res.status(status ?? 200).send(data)
+      return res.send(data)
     }
   }
 }
