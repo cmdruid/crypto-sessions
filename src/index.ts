@@ -1,5 +1,6 @@
-import { CryptoSession } from './session.js'
 import { SecureFetch }   from './fetch.js'
+import { CryptoSession } from './session.js'
+import { Token }         from './token.js'
 import { Keys } from '@cmdcode/crypto-utils'
 
 import {
@@ -8,8 +9,10 @@ import {
   useWithNext,
 } from './middleware.js'
 
+
 export {
   Keys,
+  Token,
   SecureFetch,
   CryptoSession,
   useCryptoSession,

@@ -10,16 +10,16 @@ This library contains three main components:
   2. Session handler.
   3. Server middleware.
 
-All library components should work in node and the browser. This library should also work within Cloudflare workers, but that is currently untested.
+This library is designed to work in both node and the browser, both in peer-to-peer and client-server protocols. This library should also work within Cloudflare workers (but I have not tried it yet).
 
-Package is available on NPM as **@cmdcode/crypto-sessions** with CDN support:
+Packages are available on NPM as **@cmdcode/crypto-sessions** with CDN support:
 ```html
 <script src="https://unpkg.com/@cmdcode/crypto-sessions"></script>
 ```
 
 ### Fetch Client
 
-For traditional fetch requests, this library provides a `SecureFetch` function that wraps the traditional `fetch()` method API.
+For traditional fetch requests, this library provides a `SecureFetch` function that provides a drop-in replacement for the `fetch()` method API.
 
 ```ts
 import { SecureFetch } from '@cmdcode/crypto-sessions'
@@ -40,28 +40,29 @@ const fetch = new SecureFetch(
 interface SecureFetchOptions {
   hostname? : string,    // Provides a default hostname to prepend to requests.
   fetcher?  : Function,  // Use to set a custom fetcher method. Defaults to fetch.
-  ...Request             // All Request options work here, and act as defaults.
+  ...Request             // All Request options will work here, and act as defaults for each request.
 }
+```
+The new method should act as a drop-in replacement for fetch.
 
-/* The new fetch method should act as a drop-in replacement for existing fetch. */
-
+```ts
 const res : SecureResponse = await fetch(
   'http://localhost:3000/api/endpoint',
   { 
     method : 'GET' | 'POST',
-    body   : JSON.stringify({ hello: 'world!' })
+    body   : { content: 'hello world!' }
   }
 )
 ```
 
-On the surface, the new fetch method works similar, and can be configured using the typical `Request` API. The `Response` object will also be similar, but with a couple extra fields.
+On the surface, the new fetch method will work the same, and can be configured using the typical `Request` API. The `Response` object will also be similar, but include a few extra fields.
 
 ```ts
 // The response will look slightly different.
 interface SecureResponse {
-  data? : any  // Data returned from the server, if any.
-  err?  : any  // Error returned from the client, if any.
-  ...Response  // Rest of Response object.
+  ...Response  // Typical Response object.
+  data? : any  // Decrypted data returned from the server, if any.
+  err?  : any  // Authentication errors returned from the client, if any.
 }
 ```
 
@@ -85,7 +86,7 @@ const session = new CryptoSession(
 
 // Encode a data payload to send outbound.
 const { 
-  token   : string, // Base64urlEncode(clientPubKey + encrypted(signature))
+  token   : string, // Base64urlEncode(clientPubKey + signature)
   payload : string  // Base64urlEncode(encrypted(payload))
 } = await session.encode(data : string | object)
 
@@ -94,14 +95,15 @@ const { data, isValid } = await session.decode(token, payload)
 ```
 
 When sending a request, `yourSecretKey` is used to perform the following:
-  1. Sign the full URL of the request (including query strings).
-  2. Sign a sha256 hash digest of res.body contents (POST only).
-  3. Provide a compressed public key for verification and encryption.
+  * For `GET` : Hash/sign the full URL of the request (including query string).
+  * For `POST`: Hash/sign a sha256 hash digest of res.body contents.
+  * For `POST`: Encrypt the res.body contents using the peerPublicKey.
+  * Provide a compressed public key for decryption and verification.
 
 The `peerPublicKey` is used to encrypt the outgoing payload 
 and signature, plus decrypt and verify the incoming response.
 
-You can use the `encode` and `decode` methods on the `CryptoSession` object to establish an end-to-end encrypted and signed connection directly with another peer (ex. over websockets or nostr :-)), or your can use it to authenticate with a traditional HTTP server via a middleware function.
+You can use the `encode` and `decode` methods on the `CryptoSession` object to establish end-to-end signed and encrypted connection with another peer (ex. via websockets or nostr :-)), or your can use it to authenticate with a traditional HTTP server via a middleware function.
 
 ### Server Middleware
 
@@ -138,7 +140,7 @@ export async function useMiddleWare(
 }
 ```
 
-The `useCryptoAuth` middleware will check `req.headers.authorization` for any tokens, then use it to decrypt and verify the request. Once verified, the middleware will store the client's `CryptoSession` instance in `req.session`, plus helper methods `res.secureSend` and `res.secureJson`.
+The `useCryptoAuth` middleware will check `req.headers.authorization` for any tokens, then use it to decrypt and verify the request. Once verified, the middleware will store the client's `CryptoSession` instance in `req.session`, plus secure response methods in `res.secure`.
 
 ```ts
 // Example express API endpoint.
@@ -158,8 +160,8 @@ app.get('http://localhost:3001/api/hello?name=world!', async (
   req.session
     .encode()   // Same encoding method as above.
     .decode()   // Same decoding method as above.
-    .sign()     //
-    .verify()   //
+    .sign()     // Provides a signature for the provided payload.
+    .verify()   // Verifies a payload signature and key.
     .encrypt()  // Encrypt an outgoing payload using current CryptoSession.
     .decrypt()  // Decrypt an incoming payload using current CryptoSession.
     .cipher => Cipher  // Helper method used for encryption. 
@@ -216,7 +218,7 @@ Looking for contributors. Feel free to contribute!
 
 ## Resources
 
-This project aims to be very light-weight with minimal dependencies.
+This project aims to be very light-weight. ith minimal dependencies.
 
 **@noble/secp256k1**  
 Implementation of secp256k1 in Javascript.  
