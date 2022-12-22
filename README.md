@@ -85,12 +85,12 @@ const session = new CryptoSession(
 
 // Encode a data payload to send outbound.
 const { 
-  token : string, // Base64urlEncode(clientPubKey + encrypted(signature))
-  data  : string  // Base64urlEncode(encrypted(payload))
-} = await session.encode(payload : string)
+  token   : string, // Base64urlEncode(clientPubKey + encrypted(signature))
+  payload : string  // Base64urlEncode(encrypted(payload))
+} = await session.encode(data : string | object)
 
 // Decode and verify an incoming payload.
-const payload = await session.decode(token, data)
+const { data, isValid } = await session.decode(token, payload)
 ```
 
 When sending a request, `yourSecretKey` is used to perform the following:
@@ -158,6 +158,8 @@ app.get('http://localhost:3001/api/hello?name=world!', async (
   req.session
     .encode()   // Same encoding method as above.
     .decode()   // Same decoding method as above.
+    .sign()     //
+    .verify()   //
     .encrypt()  // Encrypt an outgoing payload using current CryptoSession.
     .decrypt()  // Decrypt an incoming payload using current CryptoSession.
     .cipher => Cipher  // Helper method used for encryption. 
@@ -165,9 +167,9 @@ app.get('http://localhost:3001/api/hello?name=world!', async (
 
   // In addition, you have access to a few response helpers.
   // Use these methods to send a secure response to the client.
-  res
-    .secureSend(data: string, status: number) => Promise<Response>
-    .secureJson(data: object, status: number) => Promise<Response>
+  res.secure
+    .send(data: string, status: number) => Promise<Response>
+    .json(data: object, status: number) => Promise<Response>
 })
 ```
 

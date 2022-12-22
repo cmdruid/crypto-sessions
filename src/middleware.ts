@@ -1,6 +1,6 @@
 import { CryptoSession } from './session.js'
 import { Request, Response, NextFunction } from 'express'
-import { reviveData, checkSessionKey } from './utils.js'
+import { checkSessionKey } from './utils.js'
 import { Token } from './token.js'
 
 const HOST_NAME   = process.env.CRYPTO_SESSION_HOST ?? 'http://localhost:3001'
@@ -37,7 +37,7 @@ export async function useWithExpress(
     // Use express next function.
     return next()
   } catch (err) {
-    console.log('error!')
+    console.log('[server]:', err)
     return res.status(401).end()
   }
 }
@@ -62,20 +62,22 @@ export async function useCryptoSession(
 ): Promise<void> {
   // Unpack the request object.
   const { body, method } = req
-  // Authenticate the request endpoint.
+  // Init auth state to false.
+  req.isAuthenticated = false
+  // Check for session token.
   await getSessionToken(req, res)
   // Validate request based on method.
   if (method === 'GET') {
     // If GET, validate the request url.
-    const payload = HOST_NAME + req.url
-    await req.session.verify(req.token, payload)
-    req.isAuthenticated = true
+    const payload  = HOST_NAME + req.url
+    const verified = await req.session.verify(req.token, payload)
+    req.isAuthenticated = verified
   } 
   if (method === 'POST') {
     // If POST, validate the request body.
-    const content = await req.session.decode(req.token, body.data)
-    req.body = reviveData(content)
-    req.isAuthenticated = true
+    const { data, isValid } = await req.session.decode(req.token, body.data)
+    if (isValid) req.body = data
+    req.isAuthenticated = isValid
   }
 }
 
@@ -85,11 +87,10 @@ async function getSessionToken(
 ) : Promise<void> {
   // Unpack all required values.
   const { authorization } = req.headers
-  if (authorization !== undefined) {
+  if (await Token.check(authorization)) {
     // Initialzie token and session object.
-    req.token   = Token.fromHeaders(req.headers)
+    req.token   = Token.import(authorization)
     req.session = new CryptoSession(req.token.publicKey, PRIVATE_KEY)
-    req.isAuthenticated = false
     // Add secured response helpers to the response object.
     setSecuredResponse(req, res)
   } else {
@@ -105,14 +106,14 @@ function setSecuredResponse(
     send: async (payload: string) => {
       const { token, data } = await req.session.encode(payload)
       res.setHeader('content-type', 'text/plain')
-      res.setHeader('authorization', token)
+      res.setHeader('authorization', token.encoded)
       return res.send(data)
     },
     json:  async (payload: object) => {
       const json = JSON.stringify(payload)
       const { token, data } = await req.session.encode(json)
       res.setHeader('content-type', 'text/plain')
-      res.setHeader('authorization', token)
+      res.setHeader('authorization', token.encoded)
       return res.send(data)
     }
   }

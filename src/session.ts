@@ -1,17 +1,21 @@
 import { Buff }   from '@cmdcode/buff-utils'
 import { Token }  from './token.js'
-import { schema } from './schema.js'
+import { Schema } from './schema.js'
 
 import { 
   Cipher, Hash, Keys, Signer
 } from '@cmdcode/crypto-utils'
 
-const dc = new TextDecoder()
+type Payload = string | object
 
-export interface PayloadData {
-  token : string
+export interface EncodedData {
   data  : string
-  isEncoded? : boolean
+  token : Token
+}
+
+export interface DecodedData {
+  data    : Payload
+  isValid : boolean
 }
 
 export class CryptoSession {
@@ -105,15 +109,14 @@ export class CryptoSession {
     return Signer.verify(digest, publicKey, signature)
   }
 
-  async encode(payload: string): Promise<PayloadData> {
+  async encode(payload: Payload): Promise<EncodedData> {
     // Create a digest of the payload and sign it.
     const rawData   = Buff.normalizeData(payload)
     const signature = await this.sign(rawData)
     const encData   = await this.encrypt(rawData)
-    const token     = new Token(this.pubKey, signature)
     // Return signature token with encrypted payload.
     return {
-      token : token.encoded,
+      token : new Token(this.pubKey, signature),
       data  : Buff.buff(encData).toB64url(),
     }
   }
@@ -121,12 +124,17 @@ export class CryptoSession {
   async decode(
     token   : string | Token, 
     payload : string
-  ): Promise<string> {
+  ): Promise<DecodedData> {
     // Decode the token and payload into bytes.
-    const encData = schema.decoded.parse(payload)
+    const encData = Schema.decoded.parse(payload)
     const rawData = await this.decrypt(encData)
     const isValid = await this.verify(token, rawData)
-    if (!isValid) throw TypeError('Failed to validate signature!')
-    return dc.decode(rawData)
+    return { isValid, data: reviveData(rawData) }
   }
+}
+
+function reviveData(data : Uint8Array) : Payload {
+  const str = Buff.buff(data).toStr()
+  try { return JSON.parse(str) } 
+  catch { return str }
 }

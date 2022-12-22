@@ -17,14 +17,18 @@ export default function sessionTest(): void {
       serverKeys.privateKey
     )
     // Wrap a test payload for the client to send.
-    const clientPayload = JSON.stringify({ client: 'ping!' })
-    const { token: clientToken, data: clientData } = await clientSession.encode(
-      clientPayload
-    )
-    // Unwrap the test message using the server's session.
-    const clientResponse = await serverSession.decode(clientToken, clientData)
+    const clientPayload = { client: 'ping!' }
 
-    t.plan(1)
-    t.equal(clientResponse, clientPayload)
+    const { 
+      token : clientToken, 
+      data  : clientData 
+    } = await clientSession.encode(clientPayload)
+
+    // Unwrap the test message using the server's session.
+    const { data, isValid } = await serverSession.decode(clientToken, clientData)
+
+    t.plan(2)
+    t.equal(isValid, true)
+    t.deepEqual(data, clientPayload)
   })
 }

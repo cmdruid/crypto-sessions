@@ -1,8 +1,7 @@
-import { Buff } from '@cmdcode/buff-utils'
+import { Buff }   from '@cmdcode/buff-utils'
 import { CryptoSession } from './session.js'
-import { schema } from './schema.js'
-import { reviveData } from './utils.js'
-import { Token } from './token.js'
+import { Schema } from './schema.js'
+import { Token }  from './token.js'
 
 type Fetcher = (
   input: RequestInfo | URL,
@@ -24,7 +23,7 @@ export class SecureFetch extends Function {
   public readonly session   : CryptoSession
   public readonly hostname  : string
   public readonly fetcher   : Fetcher
-  public readonly options   : RequestInit
+  public options : RequestInit
 
   static generate(
     peerKey  : string | Uint8Array,
@@ -51,36 +50,24 @@ export class SecureFetch extends Function {
     return this.bind(this)
   }
 
-  getSession() : CryptoSession {
-    return this.session
+  get method() : string {
+    return this.options.method ?? 'GET'
   }
 
-  concatOptions(options?: RequestInit): RequestInit {
-    return { ...options, ...this.options }
+  get body() : BodyInit | null | undefined {
+    return this.options.body
   }
 
-  concatHeaders(
-    headers  : HeadersInit,
-    options? : RequestInit
-  ) : HeadersInit {
-    return { ...options?.headers, ...headers }
+  set body(body : BodyInit | null | undefined) {
+    this.options.body = body
   }
 
-  checkHeaders(headers : Headers) : boolean {
-    const auth = headers.get('authorization')
-    const type = headers.get('content-type')
-    return (
-      typeof auth === 'string' && typeof type === 'string'
-      && schema.encoded.safeParse(auth).success
-      && type.includes('text')
-    )
+  addOptions(options?: RequestInit): void {
+    this.options = { ...this.options, ...options }
   }
 
-  setAuthHeaders(
-    token    : string,
-    options? : RequestInit
-  ) : HeadersInit {
-    return this.concatHeaders({ authorization: token }, options)
+  addHeaders(headers  : HeadersInit) : void {
+    this.options.headers = { ...this.options?.headers, ...headers }
   }
 
   async fetch(
@@ -94,69 +81,64 @@ export class SecureFetch extends Function {
     }
     if (path instanceof Request) {
       // Unpack Request and get URL string.
-      options = this.concatOptions(path)
+      this.addOptions(path)
       path = path.url
     }
     // Concatenate any provided options with the defaults.
-    const opt = this.concatOptions(options)
+    this.addOptions(options)
     // Prefix path with the default hostname, if any.
     const url = this.hostname + path
     // Process the request based on method.
-    if (opt.method === undefined || opt.method === 'GET') {
+    if (this.method === undefined || this.method === 'GET') {
       // If GET or undefined, process as GET request.
-      return this.get(url, opt)
+      return this.get(url)
     }
-    if (opt.method === 'POST') {
+    if (this.method === 'POST') {
       // If POST, process as POST request.
-      return this.post(url, opt)
+      return this.post(url)
     }
     // All other methods are handled 
     // by the default fetcher method.
-    return this.fetcher(url, opt)
+    return this.fetcher(url, this.options)
   }
 
-  async get(
-    path    : string, 
-    options : RequestInit
-  ) : Promise<SecureResponse> {
+  async get(path : string) : Promise<SecureResponse> {
     // Get token for request URL path.
     const { token } = await this.session.encode(path)
     // Add token to request headers.
-    options.headers = this.setAuthHeaders(token, options)
+    this.addHeaders({ authorization: token.encoded })
     // Dispatch request, then handle the response.
-    return this.fetcher(path, options).then(async (res: Response) =>
+    return this.fetcher(path, this.options).then(async (res: Response) =>
       this.handleResponse(res)
     )
   }
 
-  async post(
-    path    : string, 
-    options : RequestInit
-  ) : Promise<SecureResponse> {
-    // Set content type to JSON.
-    const mimeType = { 'content-type': 'application/json' }
+  async post(path : string) : Promise<SecureResponse> {
     // Normalize contents of request body.
-    const content  = schema.body.parse(options.body)
+    const content = Schema.body.parse(this.body)
     // Get token and encrypted contents.
     const { token, data } = await this.session.encode(content)
     // Set the headers and body of the request.
-    options.headers = this.setAuthHeaders(token, options)
-    options.headers = this.concatHeaders(mimeType, options)
-    options.body = JSON.stringify({ data })
+    this.addHeaders({ 
+      'authorization' : token.encoded,
+      'content-type'  : 'application/json' 
+    })
+    this.body = JSON.stringify({ data })
     // Dispatch request, then handle the response.
-    return this.fetcher(path, options)
+    return this.fetcher(path, this.options)
       .then(async (res: Response) => this.handleResponse(res))
   }
 
   async handleResponse(res : SecureResponse) : Promise<SecureResponse> {
+    
     try {
-      if (!this.checkHeaders(res.headers)) {
-        throw TypeError('Invalid response headers!')
-      }
-      const token   = Token.fromHeaders(res.headers)
-      const data    = await res.text()
-      const content = await this.session.decode(token, data)
-      res.data = reviveData(content)
+      if (!res.ok) throw TypeError(`Failed request!`)
+      const encoded = res.headers.get('authorization')
+      const token   = Token.import(encoded)
+      const payload = await res.text()
+      const { data, isValid } = await this.session.decode(token, payload)
+      if (!isValid) throw TypeError('Invalid signature!')
+      res.data = data
     } catch (err) { res.err = err }
     return res
   }

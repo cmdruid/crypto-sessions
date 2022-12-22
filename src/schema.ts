@@ -1,5 +1,5 @@
 import { Buff } from '@cmdcode/buff-utils'
-import { z } from 'zod'
+import { z }    from 'zod'
 
 const stringErr = (name: string): object => {
   return {
@@ -9,22 +9,17 @@ const stringErr = (name: string): object => {
   }
 }
 
-const literalSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
-
-type Literal = z.infer<typeof literalSchema>
-type Json    = Literal | { [key: string]: Json } | Json[]
-
 const secretSchema = z
   .string(stringErr('Secret key'))
   .regex(/^[a-fA-F0-9]{64}$/, 'Must be 32 bytes in hex string format.')
 
-const pubSchema = z
-  .string(stringErr('Public key'))
-  .regex(/^(02|03)([a-fA-F0-9]{64})$/, 'Must be 33 bytes in hex string format.')
+// const pubSchema = z
+//   .string(stringErr('Public key'))
+//   .regex(/^(02|03)([a-fA-F0-9]{64})$/, 'Must be 33 bytes in hex string format.')
 
-const sigSchema = z
-  .string(stringErr('Signature'))
-  .regex(/^[a-fA-F0-9]$/, 'Must be hex string in DER format.')
+// const sigSchema = z
+//   .string(stringErr('Signature'))
+//   .regex(/^[a-fA-F0-9]{128}$/, 'Must be 64 bytes in hex string format.')
 
 const encodedSchema = z
   .string(stringErr('Encoded data'))
@@ -33,7 +28,14 @@ const encodedSchema = z
 const decodedSchema = encodedSchema
   .transform((s : string) => Buff.b64url(s).toBytes())
 
-const headerSchema = z.object({ authorization: decodedSchema })
+// const headerSchema = z.object({}).catchall(z.string())
+
+// const authSchema = z.object({ 
+//   authorization: encodedSchema 
+// }).merge(headerSchema)
+
+const tokenSchema = decodedSchema
+  .refine(bytes => bytes.length === 97)
 
 const objSchema = z.object({}).catchall(z.any())
   
@@ -42,17 +44,9 @@ const bodySchema = z.union([
   objSchema.transform((obj) => JSON.stringify(obj))
 ])
 
-const jsonSchema: z.ZodType<Json> = z.lazy(() =>
-  z.union([literalSchema, z.array(jsonSchema), z.record(jsonSchema)])
-)
-
-export const schema = {
+export const Schema = {
   secret    : secretSchema,
-  pubKey    : pubSchema,
-  signature : sigSchema,
   decoded   : decodedSchema,
-  encoded   : encodedSchema,
-  headers   : headerSchema,
+  token     : tokenSchema,
   body      : bodySchema,
-  json      : jsonSchema,
 }
