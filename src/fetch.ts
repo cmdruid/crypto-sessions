@@ -17,6 +17,7 @@ export interface SecureInstance {
 export interface SecureFetchOptions extends RequestInit {
   hostname? : string
   fetcher?  : Fetcher
+  verbose?  : boolean
 }
 
 export interface SecureResponse extends Response {
@@ -26,9 +27,10 @@ export interface SecureResponse extends Response {
 }
 
 export class SecureFetch extends Function {
-  public readonly session   : CryptoSession
-  public readonly hostname  : string
-  public readonly fetcher   : Fetcher
+  public readonly session  : CryptoSession
+  public readonly hostname : string
+  public readonly fetcher  : Fetcher
+  public readonly verbose  : boolean
   public options : RequestInit
 
   static create(
@@ -56,14 +58,17 @@ export class SecureFetch extends Function {
     options?  : SecureFetchOptions
   ) {
     // Unpack custom params from options object.
-    const { hostname, fetcher, ...opts } = options ?? {}
+    const { 
+      hostname, fetcher, verbose, ...opts 
+    } = options ?? {}
     // Initialize parent function.
     super('...args', 'return this.fetch(...args)')
     // Assign attributes.
     this.session  = new CryptoSession(peerKey, secretKey)
     this.hostname = hostname ?? ''
-    this.options  = opts ?? {}
-    this.fetcher  = fetcher ?? fetch
+    this.options  = opts     ?? {}
+    this.verbose  = verbose  ?? false
+    this.fetcher  = fetcher  ?? fetch
     return this.bind(this)
   }
 
@@ -107,6 +112,8 @@ export class SecureFetch extends Function {
     const { token } = await this.session.encode(path)
     // Add token to request headers.
     addHeaders(opt, { authorization: token.encoded })
+    // If verbose, log the final request object.
+    if (this.verbose) logRequest(path, opt)
     // Dispatch request, then handle the response.
     return this.fetcher(path, opt)
       .then(async (res: Response) => this.handleResponse(res))
@@ -117,15 +124,18 @@ export class SecureFetch extends Function {
     opt  : RequestInit
   ) : Promise<SecureResponse> {
     // Normalize contents of request body.
+    const content = Schema.body.parse(opt.body) ?? path
     // Get token and encrypted contents.
-    const content = Schema.body.parse(opt.body)
     const { token, data } = await this.session.encode(content)
-    // Set the headers and body of the request.
+    // Set the headers of the request.
     addHeaders(opt, { 
       'authorization' : token.encoded,
       'content-type'  : 'application/json' 
     })
+    // Set the body of the request.
     opt.body = JSON.stringify({ data })
+    // If verbose, log the final request object.
+    if (this.verbose) logRequest(path, opt)
     // Dispatch request, then handle the response.
     return this.fetcher(path, opt)
       .then(async (res: Response) => this.handleResponse(res))
@@ -162,4 +172,8 @@ function addHeaders(
     options.headers = Object.fromEntries(entries)
   }
   options.headers = { ...options.headers, ...headers }
+}
+
+function logRequest(path : string, opt : RequestInit) : void {
+  console.log(`Path: ${path}\nRequest:\n`, opt)
 }

@@ -42,7 +42,7 @@ const objSchema = z.object({}).catchall(z.any())
 const bodySchema = z.union([
   z.string(), 
   objSchema.transform((obj) => JSON.stringify(obj))
-])
+]).nullish()
 
 export const Schema = {
   secret  : secretSchema,

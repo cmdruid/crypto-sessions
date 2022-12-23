@@ -6,7 +6,7 @@ import { app, peerKey } from './server/app.js'
 export default function fetchTest(): void {
   tape('Testing fetch and middleware.', async (t) => {
 
-    t.plan(4)
+    t.plan(6)
 
     const { fetch: simpleFetch } = SecureFetch.generate(peerKey)
 
@@ -44,6 +44,12 @@ export default function fetchTest(): void {
 
     checkResponse(customPostResponse)
     t.deepEqual(customPostResponse.data, { challenge }, '/postJson should pass.')
+
+    const nullResponse = await customFetch('/postJson', { method: 'POST' })
+
+    checkResponse(nullResponse)
+    t.equal(nullResponse.ok, true, 'Nullish body should return a valid response.')
+    t.equal(nullResponse.data, nullResponse.url, 'Nullish response should be request url.')
 
     t.teardown(() => {
       server.close()
