@@ -1,5 +1,5 @@
-import { CryptoSession } from './session.js'
 import { Request, Response, NextFunction } from 'express'
+import { CryptoSession } from './session.js'
 import { checkSessionKey } from './utils.js'
 import { Token } from './token.js'
 
@@ -62,24 +62,20 @@ export async function useCryptoSession(
   req: Request,
   res: Response
 ): Promise<void> {
-  // Unpack the request object.
-  const { body, method } = req
   // Init auth state to false.
   req.isAuthenticated = false
   // Check for session token.
   await getSessionToken(req, res)
   // Validate request based on method.
-  if (method === 'GET') {
+  if (req.method === 'GET') {
     // If GET, validate the request url.
-    const payload  = HOST_NAME + req.url
-    const verified = await req.session.verify(req.token, payload)
-    req.isAuthenticated = verified
+    const payload = HOST_NAME + req.originalUrl
+    req.isAuthenticated = await verifyRequest(req, payload)
   } 
-  if (method === 'POST') {
+  if (req.method === 'POST') {
     // If POST, validate the request body.
-    const { data, isValid } = await req.session.decode(req.token, body.data)
-    if (isValid) req.body = data
-    req.isAuthenticated = isValid
+    const { data: payload  } = req.body
+    req.isAuthenticated = await decodeRequest(req, payload)
   }
 }
 
@@ -98,6 +94,22 @@ async function getSessionToken(
   } else {
     throw TypeError('Authorization header is undefined!')
   }
+}
+
+async function verifyRequest(
+  req     : Request,
+  payload : any
+) : Promise<boolean> {
+  return req.session.verify(req.token, payload)
+}
+
+async function decodeRequest(
+  req     : Request,
+  payload : any
+) : Promise<boolean> {
+  const { data, isValid } = await req.session.decode(req.token, payload)
+  if (isValid) req.body = data
+  return isValid
 }
 
 function setSecuredResponse(
@@ -119,4 +131,11 @@ function setSecuredResponse(
       return res.send(data)
     }
   }
+}
+
+export const MidWareUtils = {
+  getSessionToken,
+  verifyRequest,
+  decodeRequest,
+  setSecuredResponse
 }

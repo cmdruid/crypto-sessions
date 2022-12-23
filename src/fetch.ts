@@ -67,18 +67,6 @@ export class SecureFetch extends Function {
     return this.bind(this)
   }
 
-  get method() : string {
-    return this.options.method ?? 'GET'
-  }
-
-  get body() : BodyInit | null | undefined {
-    return this.options.body
-  }
-
-  set body(body : BodyInit | null | undefined) {
-    this.options.body = body
-  }
-
   async fetch(
     path    : RequestInfo | URL,
     options : SecureFetchOptions

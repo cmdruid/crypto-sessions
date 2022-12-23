@@ -3,7 +3,7 @@ import { Token }  from './token.js'
 import { Schema } from './schema.js'
 
 import { 
-  Cipher, Hash, Keys, Signer
+  Cipher, ECC, Hash, Keys, Signer
 } from '@cmdcode/crypto-utils'
 
 export type Payload = string | object
@@ -22,6 +22,10 @@ export class CryptoSession {
 
   private readonly secret: Uint8Array
   public peerKey : Uint8Array
+
+  static randomKeys() : ECC.KeyPair {
+    return Keys.genKeyPair()
+  }
 
   static generate(
     peerKey : string | Uint8Array
