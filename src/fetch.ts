@@ -2,6 +2,7 @@ import { Buff }   from '@cmdcode/buff-utils'
 import { CryptoSession } from './session.js'
 import { Schema } from './schema.js'
 import { Token }  from './token.js'
+import { z } from 'zod'
 
 export type Fetcher = (
   input: RequestInfo | URL,
@@ -20,7 +21,7 @@ export interface SecureFetchOptions extends RequestInit {
 
 export interface SecureResponse extends Response {
   token? : string
-  data?  : object | string
+  data?  : string | z.infer<typeof Schema.object>
   err?   : any
 }
 
@@ -78,14 +79,6 @@ export class SecureFetch extends Function {
     this.options.body = body
   }
 
-  addOptions(options?: RequestInit): void {
-    this.options = { ...this.options, ...options }
-  }
-
-  addHeaders(headers  : HeadersInit) : void {
-    this.options.headers = { ...this.options?.headers, ...headers }
-  }
-
   async fetch(
     path    : RequestInfo | URL,
     options : SecureFetchOptions
@@ -97,56 +90,60 @@ export class SecureFetch extends Function {
     }
     if (path instanceof Request) {
       // Unpack Request and get URL string.
-      this.addOptions(path)
+      options = concatReq(options, path)
       path = path.url
     }
     // Concatenate any provided options with the defaults.
-    this.addOptions(options)
+    const opt = concatReq(this.options, options)
     // Prefix path with the default hostname, if any.
     const url = this.hostname + path
     // Process the request based on method.
-    if (this.method === undefined || this.method === 'GET') {
+    if (opt.method === undefined || opt.method === 'GET') {
       // If GET or undefined, process as GET request.
-      return this.get(url)
+      return this.get(url, opt)
     }
-    if (this.method === 'POST') {
+    if (opt.method === 'POST') {
       // If POST, process as POST request.
-      return this.post(url)
+      return this.post(url, opt)
     }
     // All other methods are handled 
     // by the default fetcher method.
-    return this.fetcher(url, this.options)
+    return this.fetcher(url, opt)
   }
 
-  async get(path : string) : Promise<SecureResponse> {
+  async get(
+    path : string,
+    opt  : RequestInit
+  ) : Promise<SecureResponse> {
     // Get token for request URL path.
     const { token } = await this.session.encode(path)
     // Add token to request headers.
-    this.addHeaders({ authorization: token.encoded })
+    addHeaders(opt, { authorization: token.encoded })
     // Dispatch request, then handle the response.
-    return this.fetcher(path, this.options).then(async (res: Response) =>
-      this.handleResponse(res)
-    )
+    return this.fetcher(path, opt)
+      .then(async (res: Response) => this.handleResponse(res))
   }
 
-  async post(path : string) : Promise<SecureResponse> {
+  async post(
+    path : string,
+    opt  : RequestInit
+  ) : Promise<SecureResponse> {
     // Normalize contents of request body.
-    const content = Schema.body.parse(this.body)
     // Get token and encrypted contents.
+    const content = Schema.body.parse(opt.body)
     const { token, data } = await this.session.encode(content)
     // Set the headers and body of the request.
-    this.addHeaders({ 
+    addHeaders(opt, { 
       'authorization' : token.encoded,
       'content-type'  : 'application/json' 
     })
-    this.body = JSON.stringify({ data })
+    opt.body = JSON.stringify({ data })
     // Dispatch request, then handle the response.
-    return this.fetcher(path, this.options)
+    return this.fetcher(path, opt)
       .then(async (res: Response) => this.handleResponse(res))
   }
 
   async handleResponse(res : SecureResponse) : Promise<SecureResponse> {
-    
     try {
       if (!res.ok) throw TypeError(`Failed request!`)
       const encoded = res.headers.get('authorization')
@@ -158,4 +155,23 @@ export class SecureFetch extends Function {
     } catch (err) { res.err = err }
     return res
   }
+}
+
+function concatReq(
+  ...obj : RequestInit[]
+) : RequestInit {
+  let ret : RequestInit = {}
+  obj.forEach(o => { ret = { ...ret, ...o } })
+  return ret
+}
+
+function addHeaders(
+  options : RequestInit,
+  headers : HeadersInit
+) : void {
+  if (options.headers instanceof Headers) {
+    const entries = options.headers.entries()
+    options.headers = Object.fromEntries(entries)
+  }
+  options.headers = { ...options.headers, ...headers }
 }

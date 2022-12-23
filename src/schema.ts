@@ -45,8 +45,9 @@ const bodySchema = z.union([
 ])
 
 export const Schema = {
-  secret    : secretSchema,
-  decoded   : decodedSchema,
-  token     : tokenSchema,
-  body      : bodySchema,
+  secret  : secretSchema,
+  decoded : decodedSchema,
+  token   : tokenSchema,
+  object  : objSchema,
+  body    : bodySchema,
 }
