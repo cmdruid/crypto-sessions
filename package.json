@@ -9,7 +9,7 @@
     "signatures",
     "library"
   ],
-  "version": "1.1.7",
+  "version": "1.1.8",
   "main": "./dist/main.js",
   "unpkg": "./dist/bundle.min.js",
   "types": "./dist/types/index.d.ts",
