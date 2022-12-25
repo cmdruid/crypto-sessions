@@ -242,6 +242,13 @@ export default useAuthWithNext(helloAPI)
 
 This library uses the Secp256k1 curve for cryptography, ECDH for shared secret derivation, AES-CBC for encryption, and Schnorr for signatures.
 
+## Improvements / TODO
+
+* Write better tests for the edge cases.
+* Clean up the zod schemas and add better error messages.
+* Overall more verbose error checking for failed authentication.
+* Add support for key tweaking and tweak verification.
+
 ## Questions / Issues
 Feel free to ask questions and submit issues. All are welcome!
 
