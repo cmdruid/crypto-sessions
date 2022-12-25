@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express'
-import { CryptoSession } from './session.js'
+import { CryptoSession }   from './session.js'
 import { checkSessionKey } from './utils.js'
 import { Token } from './token.js'
 
@@ -119,21 +119,19 @@ function setSecuredResponse(
   res.secure = {
     send: async (payload: string) => {
       const { token, data } = await req.session.encode(payload)
-      res.setHeader('content-type', 'text/plain')
       res.setHeader('authorization', token.encoded)
       return res.send(data)
     },
-    json:  async (payload: object) => {
+    json: async (payload: object) => {
       const json = JSON.stringify(payload)
       const { token, data } = await req.session.encode(json)
-      res.setHeader('content-type', 'text/plain')
       res.setHeader('authorization', token.encoded)
       return res.send(data)
     }
   }
 }
 
-export const MidWareUtils = {
+export const MidwareUtils = {
   getSessionToken,
   verifyRequest,
   decodeRequest,

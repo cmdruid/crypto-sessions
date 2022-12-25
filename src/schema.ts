@@ -3,9 +3,9 @@ import { z }    from 'zod'
 
 const stringErr = (name: string): object => {
   return {
-    description: name,
-    required_error: `${name} is required.`,
-    invalid_type_error: `${name} must be a string.`,
+    description        : name,
+    required_error     : `${name} is required.`,
+    invalid_type_error : `${name} must be a string.`,
   }
 }
 

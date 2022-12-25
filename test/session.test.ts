@@ -1,12 +1,12 @@
 import tape from 'tape'
-import { Keys } from '@cmdcode/crypto-utils'
+import { KeyPair } from '@cmdcode/crypto-utils'
 import { CryptoSession } from '../src/session.js'
 
 export default function sessionTest(): void {
   tape('Test suite for CryptoFetch Lib', async (t) => {
     // Generate keypairs for client and server.
-    const clientKeys = Keys.genKeyPair()
-    const serverKeys = Keys.genKeyPair()
+    const clientKeys = KeyPair.generate()
+    const serverKeys = KeyPair.generate()
     // Create a shared session for client and server.
     const clientSession = new CryptoSession(
       serverKeys.publicKey,

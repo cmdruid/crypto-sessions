@@ -2,29 +2,49 @@
 
 Secure end-to-end client sessions & API calls. No cookies, storage, or state management required. Just modern key cryptography!
 
+## Description
+
+The goal of this project is to demonstrate the use of private/public key pairs for user authentication, rather than session cookies or passwords.
+
+The advantage of this approach is that you do not have to mess with managing sessions or passwords, which can be a source of friction for a new project. All users are authenticated in real-time via cryptograhy, so there is no need to manage user passwords, session tokens, session expiration / revocation, etc.
+
+The disadvantage of this approach is that key/password management is now pushed into the hands of the user/client, which is a very different paradigm than today. Clients/browsers tend to handle this responsibility quite poorly (XSS attacks anyone?), and the loss / leak of passwords is still an issue.
+
+A side-benefit of this approach is that all requests/responses are cryptgraphically signed end-to-end, and data payloads are encrypted end-to-end as well.
+
+The session authentication middleware is also relatively simple, as we are just checking the signature included with the request. This is in contrast to current oauth middleware (like Firebase) that may involve multiple servers and intermediary requests to issue a session token (then manage that token).
+
+## This is dumb. Why change things?
+
+It is a fun experiment! Plus, using public keys for identity works well with cryptocurrency and other emerging protocols (like nostr? ;-)).
+
+There's also a severe lack of tooling when it comes to client-side key management and rotation, probably due to servers usually taking responsibility for all these things. DIDs make promises to tackle these issues, but so far there is nothing material.
+
+But I like to experiement, and state-less user sessions and no password management sounds like it would be fun for small projects!
+
 ## How to Use
 
-This library contains three main components: 
-
-  1. A fetch client.
-  2. Session handler.
-  3. Server middleware.
-
-This library is designed to work in both node and the browser, both in peer-to-peer and client-server protocols. This library should also work within Cloudflare workers (but I have not tried it yet).
+This library is designed to work in both Nodejs and browser environments. This library should also work within Cloudflare workers (but I have not tried it yet).
 
 Packages are available on NPM as **@cmdcode/crypto-sessions** with CDN support:
 ```html
 <script src="https://unpkg.com/@cmdcode/crypto-sessions"></script>
 ```
 
+The library contains three main components: 
+
+  1. A fetch client (for sending requests to a server)
+  2. Session handler (can be used client <-> server or standalone p2p)
+  3. Server middleware (for receiving requests from a client).
+
 ### Fetch Client
 
-For traditional fetch requests, this library provides a `SecureFetch` function that provides a drop-in replacement for the `fetch()` method API.
+For traditional client requests, this library provides a `SecureFetch` method that works as a drop-in replacement for the `fetch()` method API.
 
 ```ts
 import { SecureFetch } from '@cmdcode/crypto-sessions'
 
-/* Returns a secure fetch method for making API calls. */
+/* Returns a secure fetch method for making requests. */
 
 const fetch = new SecureFetch(
   // Used for encrypting traffic end-to-end.
@@ -40,22 +60,23 @@ const fetch = new SecureFetch(
 interface SecureFetchOptions {
   hostname? : string,    // Provides a default hostname to prepend to requests.
   fetcher?  : Function,  // Use to set a custom fetcher method. Defaults to fetch.
+  verbose?  : boolean,   // Dumps a copy of all outgoing requests to console. useful for debugging!
   ...Request             // All Request options will work here, and act as defaults for each request.
 }
 ```
-The new method should act as a drop-in replacement for fetch.
+The new method should act as a drop-in replacement for fetch, and can be configured using the typical `Request` API. 
 
 ```ts
 const res : SecureResponse = await fetch(
   'http://localhost:3000/api/endpoint',
   { 
-    method : 'GET' | 'POST',
-    body   : { content: 'hello world!' }
+    headers : { 'key' : 'value' },
+    method  : 'GET' | 'POST',
+    body    : { content: 'hello world!' }
   }
 )
 ```
-
-On the surface, the new fetch method will work the same, and can be configured using the typical `Request` API. The `Response` object will also be similar, but include a few extra fields.
+The returned `Response` object will also be similar, but include a few extra fields.
 
 ```ts
 // The response will look slightly different.
@@ -68,7 +89,9 @@ interface SecureResponse {
 
 ### Session Handler
 
-Underneath the hood, the `SecureFetch` client is using your keys to create a new `CryptoSession` object. This object is used to sign and encrypt each request to the server, plus decrypt and verify the server response.
+Underneath the hood, the `SecureFetch` client is using your keys to create a new `CryptoSession` object. This object is used to sign and encrypt requests to the server, plus decrypt and verify the server response.
+
+t
 
 ```ts
 // Example import of the CryptoSession object.
@@ -95,15 +118,16 @@ const { data, isValid } = await session.decode(token, payload)
 ```
 
 When sending a request, `yourSecretKey` is used to perform the following:
-  * For `GET` : Hash/sign the full URL of the request (including query string).
-  * For `POST`: Hash/sign a sha256 hash digest of res.body contents.
-  * For `POST`: Encrypt the res.body contents using the peerPublicKey.
-  * Provide a compressed public key for decryption and verification.
+  * For `GET` : Hash + sign the full URL of the request (including query string).
+  * For `POST`: Hash + sign the contents of req.body.
+  * For `POST`: Encrypt the contents of req.body using the peerPublicKey.
+  * Provide a token (pubkey + signature) for decryption and verification.
 
-The `peerPublicKey` is used to encrypt the outgoing payload 
-and signature, plus decrypt and verify the incoming response.
+The `peerPublicKey` is used to encrypt the outgoing payload, plus decrypt and verify the returned response.
 
 You can use the `encode` and `decode` methods on the `CryptoSession` object to establish end-to-end signed and encrypted connection with another peer (ex. via websockets or nostr :-)), or your can use it to authenticate with a traditional HTTP server via a middleware function.
+
+Full API of the `CryptoSession` object:
 
 ### Server Middleware
 
@@ -114,12 +138,11 @@ import { useCryptoAuth } from '@cmdcode/crypto-sessions'
 
 /* We have to set some environment variables first. */
 
-// The host name is signed by the 
-// client, so this must be correct.
+// The hostname of your server. The client
+// will include your hostname when they sign.
 process.env.CRYPTO_SESSION_HOST
 
-// The private key is used to sign 
-// responses, plus decrypt traffic.
+// The secret key to use for establishing sessions.
 process.env.CRYPTO_SESSION_KEY
 
 /* Example of a generic middleware function. */
@@ -140,7 +163,9 @@ export async function useMiddleWare(
 }
 ```
 
-The `useCryptoAuth` middleware will check `req.headers.authorization` for any tokens, then use it to decrypt and verify the request. Once verified, the middleware will store the client's `CryptoSession` instance in `req.session`, plus secure response methods in `res.secure`.
+The `useCryptoAuth` middleware will check `req.headers.authorization` for any tokens, then use it to create a `CryptoSession` that decrypts and verifies the request.
+
+Once verified, the `CryptoSession` instance is stored in `req.session`, with linked response methods stored in `res.secure`.
 
 ```ts
 // Example express API endpoint.
@@ -148,9 +173,14 @@ app.get('http://localhost:3001/api/hello?name=world!', async (
   req : Request, 
   res : Response
 ) : => {
+
+  // A helper boolean is provided for checking authentication status.
+  req.isAuthorized = true | false
+
   // You have access to the client/server CryptoSession object.
   const {
     peerKey       // The public key of the client.
+    peerHex       // Hex-encoded string of the peerKey.
     pubKey        // The public key of your server.
     sharedSecret  // The shared secret between the client <-> server.
     sharedHash    // The sha256 hash of the shared secret.
@@ -164,11 +194,9 @@ app.get('http://localhost:3001/api/hello?name=world!', async (
     .verify()   // Verifies a payload signature and key.
     .encrypt()  // Encrypt an outgoing payload using current CryptoSession.
     .decrypt()  // Decrypt an incoming payload using current CryptoSession.
-    .cipher => Cipher  // Helper method used for encryption. 
-    .signer => Signer  // Helper method used for ECDSA/Schnorr signatures.
 
-  // In addition, you have access to a few response helpers.
-  // Use these methods to send a secure response to the client.
+  // In addition, you have access to secure response methods.
+  // Use these methods to send a secured response to the client.
   res.secure
     .send(data: string, status: number) => Promise<Response>
     .json(data: object, status: number) => Promise<Response>
@@ -203,7 +231,7 @@ async function helloAPI(
   res : NextApiResponse
 ) {
   const { name } = req.query
-  return res.secureJson({ message: `Hello ${name}!` })
+  return res.secure.json({ message: `Hello ${name}!` })
 }
 
 // The middleware is used to wrap the method export.

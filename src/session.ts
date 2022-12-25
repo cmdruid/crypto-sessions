@@ -1,10 +1,7 @@
 import { Buff }   from '@cmdcode/buff-utils'
 import { Token }  from './token.js'
 import { Schema } from './schema.js'
-
-import { 
-  Cipher, ECC, Hash, Keys, Signer
-} from '@cmdcode/crypto-utils'
+import { Cipher, sha256, Signer } from '@cmdcode/crypto-utils'
 
 export type Payload = string | object
 
@@ -22,16 +19,6 @@ export class CryptoSession {
 
   private readonly secret: Uint8Array
   public peerKey : Uint8Array
-
-  static randomKeys() : ECC.KeyPair {
-    return Keys.genKeyPair()
-  }
-
-  static generate(
-    peerKey : string | Uint8Array
-  ) : CryptoSession {
-    return new CryptoSession(peerKey, Buff.random(32))
-  }
 
   static withToken(
     b64token  : string,
@@ -53,8 +40,9 @@ export class CryptoSession {
     return Buff.buff(this.peerKey).toHex()
   }
 
-  get cipher(): Cipher {
-    return Cipher.from(this.secret)
+  get cipher(): Promise<Cipher> {
+    return Cipher.fromShared(this.secret, this.peerKey)
+
   }
 
   get signer(): Signer {
@@ -70,12 +58,13 @@ export class CryptoSession {
   }
 
   get sharedSecret(): Promise<Uint8Array> {
-    return Keys.getSharedSecret(this.secret, this.peerKey)
+    return this.cipher
+      .then(async (cipher) => cipher.secretKey)
   }
 
   get sharedHash(): Promise<Uint8Array> {
     return this.sharedSecret
-      .then(async (bytes) => Hash.sha256(bytes))
+      .then(async (bytes) => sha256(bytes))
   }
 
   get sharedHex(): Promise<string> {
@@ -88,18 +77,20 @@ export class CryptoSession {
   }
 
   async encrypt(data: Uint8Array): Promise<Uint8Array> {
-    return this.cipher.encryptShared(this.peerKey, data)
+    const cipher = await this.cipher
+    return cipher.encrypt(data)
   }
 
   async decrypt(data: Uint8Array): Promise<Uint8Array> {
-    return this.cipher.decryptShared(this.peerKey, data)
+    const cipher = await this.cipher
+    return cipher.decrypt(data)
   }
 
   async sign(
     payload: string | Uint8Array
   ) : Promise<Uint8Array> {
     const msg = Buff.normalizeData(payload)
-    const digest = await Hash.sha256(msg)
+    const digest = await sha256(msg)
     return this.signer.sign(digest)
   }
 
@@ -113,7 +104,7 @@ export class CryptoSession {
     const { publicKey, signature } = token
     // Normalize the payload data and compute sha256 hash.
     const msg = Buff.normalizeData(payload)
-    const digest = await Hash.sha256(msg)
+    const digest = await sha256(msg)
     // Return if signature is valid, throw if configured.
     return Signer.verify(digest, publicKey, signature)
   }

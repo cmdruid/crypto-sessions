@@ -1,8 +1,8 @@
 import express, { Express, Request, Response } from 'express'
-import { ECC } from '@cmdcode/crypto-utils'
+import { KeyPair } from '@cmdcode/crypto-utils'
 import { useWithExpress } from '../../src/middleware.js'
 
-const serverKeys = new ECC.KeyPair(process.env.CRYPTO_SESSION_KEY ?? '')
+const serverKeys = new KeyPair(process.env.CRYPTO_SESSION_KEY ?? '')
 
 export const peerKey = serverKeys.publicHex
 
