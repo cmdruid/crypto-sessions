@@ -6,7 +6,7 @@ Secure end-to-end client sessions & API calls. No cookies, storage, or state man
 
 The goal of this project is to demo the use of private/public key pairs for user authentication, rather than session cookies or passwords.
 
-The advantage of this approach is that you do not have to mess with managing session cookies, tokens or passwords, which can burden a new project. All users are authenticated in real-time via cryptograhy.
+The advantage of this approach is that user authentication is done in real-time. On-boarding is immediate and registration can be optional (though spam / sybil attacks are still an issue).
 
 The disadvantage of this approach is that key management is now pushed into the hands of the user / client, which is a much different paradigm. Browsers handle this responsibility poorly (XSS attacks anyone?), and the loss / leaking of passwords is still an issue.
 
