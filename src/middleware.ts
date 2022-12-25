@@ -25,7 +25,7 @@ export interface SecuredSend {
   json : (payload : object) => Promise<Response>
 }
 
-export async function useWithExpress(
+export async function useAuthWithExpress(
   req  : Request,
   res  : Response,
   next : NextFunction
@@ -44,7 +44,7 @@ export async function useWithExpress(
   }
 }
 
-export function useWithNext(handler: Function): unknown {
+export function useAuthWithNext(handler: Function): unknown {
   return async (req: Request, res: Response) => {
     try {
       // Apply middleware

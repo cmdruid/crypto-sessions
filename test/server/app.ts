@@ -1,6 +1,6 @@
 import express, { Express, Request, Response } from 'express'
 import { KeyPair } from '@cmdcode/crypto-utils'
-import { useWithExpress } from '../../src/middleware.js'
+import { useAuthWithExpress } from '../../src/middleware.js'
 
 const serverKeys = new KeyPair(process.env.CRYPTO_SESSION_KEY ?? '')
 
@@ -10,7 +10,7 @@ export const app: Express = express()
 
 app.use(express.urlencoded({ extended: false }))
 app.use(express.json({ limit: 1000 }))
-app.use(useWithExpress)
+app.use(useAuthWithExpress)
 
 app.get('/getSend', async (req: Request, res: Response) => {
   console.log(req.url, req.query)
