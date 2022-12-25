@@ -4,23 +4,23 @@ Secure end-to-end client sessions & API calls. No cookies, storage, or state man
 
 ## Description
 
-The goal of this project is to demonstrate the use of private/public key pairs for user authentication, rather than session cookies or passwords.
+The goal of this project is to demo the use of private/public key pairs for user authentication, rather than session cookies or passwords.
 
-The advantage of this approach is that you do not have to mess with managing sessions or passwords, which can be a source of friction for a new project. All users are authenticated in real-time via cryptograhy, so there is no need to manage passwords, session tokens, session expiration / revocation, etc.
+The advantage of this approach is that you do not have to mess with managing session cookies, tokens or passwords, which can burden a new project. All users are authenticated in real-time via cryptograhy.
 
-The disadvantage of this approach is that key management is now pushed into the hands of the user / client, which is a much different paradigm than today. Browsers tend to handle this responsibility very poorly (XSS attacks anyone?), and the loss / leak of passwords is still an issue.
+The disadvantage of this approach is that key management is now pushed into the hands of the user / client, which is a much different paradigm. Browsers handle this responsibility poorly (XSS attacks anyone?), and the loss / leaking of passwords is still an issue.
 
 A side-benefit of this approach is that all requests/responses are cryptgraphically signed end-to-end, and data payloads are encrypted end-to-end as well.
 
-The session authentication middleware is also relatively simple, as we are just checking the signature included with the request. This is in contrast to current auth middleware (like Firebase / Oauth) that may involve multiple servers and intermediary requests to issue a session token (then manage that token).
+The session middleware is also simplified to just checking the signature on each request. This is contrast to auth providers that involve handling tokens and intermediary requests (which can be hijacked).
 
 ## This is dumb. Why change things?
 
 It is a fun experiment! Plus, using public keys for identity works well with cryptocurrency and other emerging protocols (like nostr? ;-)).
 
-There's also a severe lack of tooling when it comes to client-side key management and rotation. DIDs make promises to tackle these issues, but so far there is nothing material (many great devs are working on it!).
+There's also a severe lack of tooling when it comes to client-side key management. DIDs show some promise, but so far there is nothing material.
 
-But I like to experiement, and state-less user sessions with no password management sounds like it would be fun for small projects. Let me know what you think!
+But I like to experiement, and state-less user sessions sounds like it would be fun for small projects. Maybe it will help push further development and tooling for self-custody of keys. Let me know what you think!
 
 ## How to Use
 
