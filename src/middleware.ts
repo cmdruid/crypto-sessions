@@ -3,6 +3,8 @@ import { CryptoSession }   from './session.js'
 import { checkSessionKey } from './utils.js'
 import { Token } from './token.js'
 
+type HandleMethod = (req : Request, res : Response)  => void
+
 const HOST_NAME   = process.env.CRYPTO_SESSION_HOST ?? 'http://localhost:3001'
 const PRIVATE_KEY = checkSessionKey(process.env.CRYPTO_SESSION_KEY)
 
@@ -25,18 +27,17 @@ export interface SecuredSend {
   json : (payload : object) => Promise<Response>
 }
 
-export async function useAuthWithExpress(
+export async function useAuthWithExpress (
   req  : Request,
   res  : Response,
   next : NextFunction
   // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
-): Promise<void | Response<any, Record<string, any>>> {
+) : Promise<void | Response<any, Record<string, any>>> {
   try {
     // Apply middleware
     await useCryptoSession(req, res)
     // Use express next function.
-    if (req.isAuthenticated) 
-      return next()
+    if (req.isAuthenticated) { next(); return }
     return res.status(401).end()
   } catch (err) {
     console.log('[server]:', err)
@@ -44,13 +45,14 @@ export async function useAuthWithExpress(
   }
 }
 
-export function useAuthWithNext(handler: Function): unknown {
-  return async (req: Request, res: Response) => {
+export function useAuthWithNext (handler : HandleMethod) : unknown {
+  return async (req : Request, res : Response) => {
     try {
       // Apply middleware
       await useCryptoSession(req, res)
       // Return handler to next router.
-      return handler(req, res)
+      handler(req, res)
+      return
     } catch (err) {
       console.log(err)
       return res.status(401).end()
@@ -58,10 +60,10 @@ export function useAuthWithNext(handler: Function): unknown {
   }
 }
 
-export async function useCryptoSession(
-  req: Request,
-  res: Response
-): Promise<void> {
+export async function useCryptoSession (
+  req : Request,
+  res : Response
+) : Promise<void> {
   // Init auth state to false.
   req.isAuthenticated = false
   // Check for session token.
@@ -71,7 +73,7 @@ export async function useCryptoSession(
     // If GET, validate the request url.
     const payload = HOST_NAME + req.originalUrl
     req.isAuthenticated = await verifyRequest(req, payload)
-  } 
+  }
   if (req.method === 'POST') {
     // If POST, validate the request body.
     const { data: payload  } = req.body
@@ -79,7 +81,7 @@ export async function useCryptoSession(
   }
 }
 
-async function getSessionToken(
+async function getSessionToken (
   req : Request,
   res : Response
 ) : Promise<void> {
@@ -96,14 +98,14 @@ async function getSessionToken(
   }
 }
 
-async function verifyRequest(
+async function verifyRequest (
   req     : Request,
   payload : any
 ) : Promise<boolean> {
   return req.session.verify(req.token, payload)
 }
 
-async function decodeRequest(
+async function decodeRequest (
   req     : Request,
   payload : any
 ) : Promise<boolean> {
@@ -112,17 +114,17 @@ async function decodeRequest(
   return isValid
 }
 
-function setSecuredResponse(
+function setSecuredResponse (
   req : Request,
   res : Response
 ) : void {
   res.secure = {
-    send: async (payload: string) => {
+    send: async (payload : string) => {
       const { token, data } = await req.session.encode(payload)
       res.setHeader('authorization', token.encoded)
       return res.send(data)
     },
-    json: async (payload: object) => {
+    json: async (payload : object) => {
       const json = JSON.stringify(payload)
       const { token, data } = await req.session.encode(json)
       res.setHeader('authorization', token.encoded)

@@ -1,6 +1,6 @@
 import tape from 'tape'
 import { KeyPair } from '@cmdcode/crypto-utils'
-import { CryptoSession } from '../src/session.js'
+import { CryptoSession } from '../../src/session.js'
 
 export default function sessionTest(): void {
   tape('Test suite for CryptoFetch Lib', async (t) => {

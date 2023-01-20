@@ -1,16 +1,9 @@
-// rollup.config.ts
-import json from '@rollup/plugin-json'
-import typescript from '@rollup/plugin-typescript'
-import { terser } from 'rollup-plugin-terser'
+import typescript  from '@rollup/plugin-typescript'
+import { terser }  from 'rollup-plugin-terser'
 import nodeResolve from '@rollup/plugin-node-resolve'
-import commonjs from '@rollup/plugin-commonjs'
-import camelcase from 'camelcase'
+import commonjs    from '@rollup/plugin-commonjs'
 
-import pkg from './package.json' assert { type: 'json' }
-
-const libName = camelcase(String('/' + pkg.name))
-  .split('/')
-  .at(-1)
+const libName = 'cryptoSession'
 
 const treeshake = {
   moduleSideEffects: false,
@@ -52,14 +45,14 @@ const nodeConfig = {
       minifyInternalExports: false,
     },
   ],
-  plugins: [json(), typescript(tsConfig), nodeResolve(), commonjs()],
+  plugins: [typescript(tsConfig), nodeResolve(), commonjs()],
   strictDeprecations: true,
   treeshake,
 }
 
 const browserConfig = {
   input: 'src/index.ts',
-  onwarn,
+  // onwarn,
   output: [
     {
       file: 'dist/bundle.min.js',
@@ -73,7 +66,6 @@ const browserConfig = {
     },
   ],
   plugins: [
-    json(),
     typescript(tsConfig),
     nodeResolve({ browser: true }),
     commonjs(),
@@ -82,36 +74,4 @@ const browserConfig = {
   treeshake,
 }
 
-// const testConfig = {
-//   input: 'test/index.test.js',
-//   onwarn,
-//   output: [
-//     {
-//       file: 'test/browser.test.js',
-//       format: 'iife',
-//       name: 'test',
-//       plugins: [terser()],
-//       sourcemap: false,
-//       globals: {
-//         crypto: 'crypto',
-//         tape: 'tape',
-//         'tiny-secp256k1': 'ecc'
-//       },
-//     },
-//   ],
-//   external: ['crypto', 'tape', 'tiny-secp256k1'],
-//   plugins: [
-//     json(),
-//     typescript({ ...tsConfig, sourceMap: false }),
-//     nodeResolve({ browser: true }),
-//     commonjs(),
-//   ],
-//   strictDeprecations: true,
-//   treeshake,
-// }
-
-export default [
-  nodeConfig,
-  browserConfig,
-  // testConfig,
-]
+export default [ nodeConfig, browserConfig ]

@@ -1,7 +1,7 @@
 import { Buff } from '@cmdcode/buff-utils'
 import { KeyPair } from '@cmdcode/crypto-utils'
 
-export function checkSessionKey(key : string | undefined) : string {
+export function checkSessionKey (key : string | undefined) : string {
   if (key === undefined) {
     const { privateHex, publicHex } = KeyPair.generate()
     throw TypeError(`
@@ -14,7 +14,7 @@ export function checkSessionKey(key : string | undefined) : string {
   return key
 }
 
-export function logRaw(data: any) : void {
+export function logRaw (data : any) : void {
   for (const key of Object.keys(data)) {
     console.log(`${key}: ${Buff.buff(data[key]).toHex()}`)
   }

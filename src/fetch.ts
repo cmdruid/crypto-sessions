@@ -1,29 +1,28 @@
-import { z }      from 'zod'
-import { Buff }   from '@cmdcode/buff-utils'
-import { Schema } from './schema.js'
-import { Token }  from './token.js'
+import { Buff, Json }    from '@cmdcode/buff-utils'
+import { Schema }        from './schema.js'
+import { Token }         from './token.js'
 import { CryptoSession } from './session.js'
 
 export type Fetcher = (
-  input: RequestInfo | URL,
-  init?: RequestInit | undefined
+  input : RequestInfo | URL,
+  init ?: RequestInit | undefined
 ) => Promise<Response>
 
-export interface SecureInstance { 
-  fetch   : SecureFetch, 
-  session : CryptoSession 
+export interface SecureInstance {
+  fetch   : SecureFetch
+  session : CryptoSession
 }
 
 export interface SecureFetchOptions extends RequestInit {
-  hostname? : string
-  fetcher?  : Fetcher
-  verbose?  : boolean
+  hostname ?: string
+  fetcher  ?: Fetcher
+  verbose  ?: boolean
 }
 
 export interface SecureResponse extends Response {
-  token? : string
-  data?  : string | z.infer<typeof Schema.object>
-  err?   : any
+  token ?: string
+  data  ?: string | Json
+  err   ?: any
 }
 
 export class SecureFetch extends Function {
@@ -33,10 +32,10 @@ export class SecureFetch extends Function {
   public readonly verbose  : boolean
   public options : RequestInit
 
-  static create(
+  static create (
     peerKey   : string | Uint8Array,
     secretKey : string | Uint8Array,
-    options?  : SecureFetchOptions
+    options ?: SecureFetchOptions
   ) : SecureInstance {
     return {
       fetch   : new SecureFetch(peerKey, secretKey, options),
@@ -44,22 +43,22 @@ export class SecureFetch extends Function {
     }
   }
 
-  static generate(
+  static generate (
     peerKey  : string | Uint8Array,
-    options? : SecureFetchOptions
+    options ?: SecureFetchOptions
   ) : SecureInstance {
     const privKey = Buff.random(32).toBytes()
     return SecureFetch.create(peerKey, privKey, options)
   }
 
-  constructor(
+  constructor (
     peerKey   : string | Uint8Array,
     secretKey : string | Uint8Array,
-    options?  : SecureFetchOptions
+    options ?: SecureFetchOptions
   ) {
     // Unpack custom params from options object.
-    const { 
-      hostname, fetcher, verbose, ...opts 
+    const {
+      hostname, fetcher, verbose, ...opts
     } = options ?? {}
     // Initialize parent function.
     super('...args', 'return this.fetch(...args)')
@@ -72,11 +71,10 @@ export class SecureFetch extends Function {
     return this.bind(this)
   }
 
-  async fetch(
+  async fetch (
     path    : RequestInfo | URL,
     options : SecureFetchOptions
   ) : Promise<SecureResponse> {
-    
     if (path instanceof URL) {
       // Convert URL object to string.
       path = path.toString()
@@ -99,12 +97,12 @@ export class SecureFetch extends Function {
       // If POST, process as POST request.
       return this.post(url, opt)
     }
-    // All other methods are handled 
+    // All other methods are handled
     // by the default fetcher method.
     return this.fetcher(url, opt)
   }
 
-  async get(
+  async get (
     path : string,
     opt  : RequestInit
   ) : Promise<SecureResponse> {
@@ -116,10 +114,10 @@ export class SecureFetch extends Function {
     if (this.verbose) logRequest(path, opt)
     // Dispatch request, then handle the response.
     return this.fetcher(path, opt)
-      .then(async (res: Response) => this.handleResponse(res))
+      .then(async (res : Response) => this.handleResponse(res))
   }
 
-  async post(
+  async post (
     path : string,
     opt  : RequestInit
   ) : Promise<SecureResponse> {
@@ -128,9 +126,9 @@ export class SecureFetch extends Function {
     // Get token and encrypted contents.
     const { token, data } = await this.session.encode(content)
     // Set the headers of the request.
-    addHeaders(opt, { 
-      'authorization' : token.encoded,
-      'content-type'  : 'application/json' 
+    addHeaders(opt, {
+      authorization  : token.encoded,
+      'content-type' : 'application/json'
     })
     // Set the body of the request.
     opt.body = JSON.stringify({ data })
@@ -138,12 +136,12 @@ export class SecureFetch extends Function {
     if (this.verbose) logRequest(path, opt)
     // Dispatch request, then handle the response.
     return this.fetcher(path, opt)
-      .then(async (res: Response) => this.handleResponse(res))
+      .then(async (res : Response) => this.handleResponse(res))
   }
 
-  async handleResponse(res : SecureResponse) : Promise<SecureResponse> {
+  async handleResponse (res : SecureResponse) : Promise<SecureResponse> {
     try {
-      if (!res.ok) throw TypeError(`Failed request!`)
+      if (!res.ok) throw TypeError('Failed request!')
       const encoded = res.headers.get('authorization')
       const token   = Token.import(encoded)
       const payload = await res.text()
@@ -155,7 +153,7 @@ export class SecureFetch extends Function {
   }
 }
 
-function concatReq(
+function concatReq (
   ...obj : RequestInit[]
 ) : RequestInit {
   let ret : RequestInit = {}
@@ -163,7 +161,7 @@ function concatReq(
   return ret
 }
 
-function addHeaders(
+function addHeaders (
   options : RequestInit,
   headers : HeadersInit
 ) : void {
@@ -174,6 +172,6 @@ function addHeaders(
   options.headers = { ...options.headers, ...headers }
 }
 
-function logRequest(path : string, opt : RequestInit) : void {
+function logRequest (path : string, opt : RequestInit) : void {
   console.log(`Path: ${path}\nRequest:\n`, opt)
 }

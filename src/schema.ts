@@ -1,11 +1,11 @@
 import { Buff } from '@cmdcode/buff-utils'
 import { z }    from 'zod'
 
-const stringErr = (name: string): object => {
+const stringErr = (name : string) : object => {
   return {
     description        : name,
     required_error     : `${name} is required.`,
-    invalid_type_error : `${name} must be a string.`,
+    invalid_type_error : `${name} must be a string.`
   }
 }
 
@@ -30,17 +30,17 @@ const decodedSchema = encodedSchema
 
 // const headerSchema = z.object({}).catchall(z.string())
 
-// const authSchema = z.object({ 
-//   authorization: encodedSchema 
+// const authSchema = z.object({
+//   authorization: encodedSchema
 // }).merge(headerSchema)
 
 const tokenSchema = decodedSchema
   .refine(bytes => bytes.length === 97)
 
 const objSchema = z.object({}).catchall(z.any())
-  
+
 const bodySchema = z.union([
-  z.string(), 
+  z.string(),
   objSchema.transform((obj) => JSON.stringify(obj))
 ]).nullish()
 
@@ -49,5 +49,5 @@ export const Schema = {
   decoded : decodedSchema,
   token   : tokenSchema,
   object  : objSchema,
-  body    : bodySchema,
+  body    : bodySchema
 }

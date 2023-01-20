@@ -6,11 +6,11 @@ export class SignatureError extends Error {
   public signature : string
   public message   : string
 
-  constructor(
+  constructor (
     digest    : Uint8Array,
     publicKey : Uint8Array,
     signature : Uint8Array,
-    message?  : Uint8Array,
+    message  ?: Uint8Array
   ) {
     super('Signature failed to validate!')
     this.name = 'SignatureError'

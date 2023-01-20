@@ -1,7 +1,7 @@
 import tape from 'tape'
 import { Buff } from '@cmdcode/buff-utils'
-import { SecureFetch, SecureResponse } from '../src/fetch.js'
-import { app, peerKey } from './server/app.js'
+import { SecureFetch, SecureResponse } from '../../src/fetch.js'
+import { app, peerKey } from '../server/app.js'
 
 export default function fetchTest(): void {
   tape('Testing fetch and middleware.', async (t) => {

@@ -9,13 +9,12 @@
     "include": ["test/**/*.test.ts"]
   },
   "compilerOptions": {
-    /* Visit https://aka.ms/tsconfig to read more about this file */
-    "module": "ES2020",
-    "target": "ES2020",
+    "module": "ES2022",
+    "target": "ES2022",
     "moduleResolution": "Node",
-    "baseUrl": ".",
+    "baseUrl": "src",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./*"]
     },
     "rootDir": "./src",
     "outDir": "./dist",
