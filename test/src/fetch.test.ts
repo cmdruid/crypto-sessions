@@ -1,5 +1,6 @@
 import tape from 'tape'
-import { Buff } from '@cmdcode/buff-utils'
+import { Buff }      from '@cmdcode/buff-utils'
+import { SecretKey } from '@cmdcode/crypto-utils'
 import { SecureFetch, SecureResponse } from '../../src/fetch.js'
 import { app, peerKey } from '../server/app.js'
 
@@ -8,20 +9,21 @@ export default function fetchTest(): void {
 
     t.plan(6)
 
-    const { fetch: simpleFetch } = SecureFetch.generate(peerKey)
+    const seckey = new SecretKey('6fa608cc1bf85529400327bd27f303b7cfb0edab47b90e1cae51117a2ebb4b0a')
+
+    const simpleFetch = new SecureFetch(peerKey, seckey)
 
     const customFetch = new SecureFetch(peerKey, Buff.random(32), {
       hostname: 'http://localhost:3001',
     })
 
-    const server = app.listen(3001)
-    const challenge  = Buff.random(16).toHex()
+    const server    = app.listen(3001)
+    const challenge = Buff.random(16).hex
 
-    const simpleGetResponse = await simpleFetch(
-      `http://localhost:3001/getSend?challenge=${challenge}`
-    )
+    const simpleGetResponse = await simpleFetch(`http://localhost:3001/getSend?challenge=${challenge}`)
 
     checkResponse(simpleGetResponse)
+
     t.equal(simpleGetResponse.data, challenge, '/getSend should pass.')
 
     const simplePostResponse = await simpleFetch(

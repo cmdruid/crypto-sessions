@@ -1,9 +1,10 @@
-import { Buff, Json } from '@cmdcode/buff-utils'
+import { Buff, Bytes, Json } from '@cmdcode/buff-utils'
 
 import {
   Cipher,
-  Hash,
-  Signer
+  SecretKey,
+  PublicKey,
+  verify
 } from '@cmdcode/crypto-utils'
 
 import { Token }  from './token.js'
@@ -22,62 +23,45 @@ export interface DecodedData {
 }
 
 export class CryptoSession {
-  private readonly secret : Uint8Array
-  public peerKey : Uint8Array
+  readonly _secret : Buff
+  readonly peerKey : Buff
 
   static withToken (
     b64token  : string,
-    secretKey : string | Uint8Array
+    secretKey : Bytes
   ) : CryptoSession {
-    const { publicKey: peerKey } = Token.import(b64token)
+    const { pubkey: peerKey } = Token.import(b64token)
     return new CryptoSession(peerKey, secretKey)
   }
 
   constructor (
-    peerKey   : string | Uint8Array,
-    secretKey : string | Uint8Array
+    peerKey   : Bytes,
+    secretKey : Bytes
   ) {
-    this.peerKey = Buff.normalize(peerKey)
-    this.secret  = Buff.normalize(secretKey)
-  }
-
-  get peerHex () : string {
-    return Buff.buff(this.peerKey).toHex()
+    this.peerKey = Buff.bytes(peerKey)
+    this._secret = Buff.bytes(secretKey)
   }
 
   get cipher () : Promise<Cipher> {
-    return Cipher.fromShared(this.secret, this.peerKey)
+    return Cipher.fromShared(this._secret, this.peerKey)
   }
 
-  get signer () : Signer {
-    return new Signer(this.secret)
+  get seckey () : SecretKey {
+    return new SecretKey(this._secret)
   }
 
-  get pubKey () : Uint8Array {
-    return this.signer.publicKey
+  get pubkey () : PublicKey {
+    return this.seckey.pub
   }
 
-  get pubHex () : string {
-    return Buff.buff(this.pubKey).toHex()
-  }
-
-  get sharedSecret () : Promise<Uint8Array> {
+  get shared () : Promise<Buff> {
     return this.cipher
       .then(async (cipher) => cipher.secretKey)
-  }
-
-  get sharedHash () : Promise<Uint8Array> {
-    return this.sharedSecret
-      .then(async (bytes) => Hash.sha256(bytes))
-  }
-
-  get sharedHex () : Promise<string> {
-    return this.sharedHash
-      .then(bytes => Buff.buff(bytes).toHex())
+      .then(bytes => Buff.raw(bytes))
   }
 
   isWith (key : string) : boolean {
-    return key === this.peerHex
+    return key === this.peerKey.hex
   }
 
   async encrypt (data : Uint8Array) : Promise<Uint8Array> {
@@ -90,38 +74,39 @@ export class CryptoSession {
     return cipher.decrypt(data)
   }
 
-  async sign (
-    payload : string | Uint8Array
-  ) : Promise<Uint8Array> {
-    const msg = Buff.serialize(payload)
-    const digest = await Hash.sha256(msg)
-    return this.signer.sign(digest)
+  sign (
+    payload : Bytes
+  ) : Uint8Array {
+    const digest = Buff.serialize(payload).digest
+    return this.seckey.sign(digest, 'ecdsa')
   }
 
-  async verify (
+  verify (
     token   : string | Token,
-    payload : string | Uint8Array
-  ) : Promise<boolean> {
+    payload : Bytes
+  ) : boolean {
     // If provided token is a string, convert to Token object.
     if (typeof token === 'string') token = Token.import(token)
     // Unpack the key and signature from token object.
-    const { publicKey, signature } = token
+    const { pubkey, signature } = token
     // Normalize the payload data and compute sha256 hash.
-    const msg = Buff.serialize(payload)
-    const digest = await Hash.sha256(msg)
+    const digest = Buff.serialize(payload).digest
     // Return if signature is valid, throw if configured.
-    return Signer.verify(digest, publicKey, signature)
+    if (pubkey.hex !== this.peerKey.hex) {
+      return false
+    }
+    return verify(signature, digest, pubkey, 'ecdsa')
   }
 
   async encode (payload : Payload) : Promise<EncodedData> {
     // Create a digest of the payload and sign it.
     const rawData   = Buff.serialize(payload)
-    const signature = await this.sign(rawData)
+    const signature = this.sign(rawData)
     const encData   = await this.encrypt(rawData)
     // Return signature token with encrypted payload.
     return {
-      token : new Token(this.pubKey, signature),
-      data  : Buff.buff(encData).toB64url()
+      token : new Token(this.pubkey, signature),
+      data  : Buff.raw(encData).b64url
     }
   }
 
@@ -132,12 +117,12 @@ export class CryptoSession {
     // Decode the token and payload into bytes.
     const encData = Schema.decoded.parse(payload)
     const rawData = await this.decrypt(encData)
-    const isValid = await this.verify(token, rawData)
+    const isValid = this.verify(token, rawData)
     return { isValid, data: reviveData(rawData) }
   }
 }
 
 function reviveData (data : Uint8Array) : Payload {
-  const str = Buff.buff(data).toStr()
+  const str = Buff.raw(data).str
   try { return JSON.parse(str) } catch { return str }
 }

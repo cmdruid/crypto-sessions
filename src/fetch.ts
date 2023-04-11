@@ -54,18 +54,18 @@ export class SecureFetch extends Function {
   constructor (
     peerKey   : string | Uint8Array,
     secretKey : string | Uint8Array,
-    options ?: SecureFetchOptions
+    options   : SecureFetchOptions = {}
   ) {
     // Unpack custom params from options object.
     const {
       hostname, fetcher, verbose, ...opts
-    } = options ?? {}
+    } = options
     // Initialize parent function.
     super('...args', 'return this.fetch(...args)')
     // Assign attributes.
     this.session  = new CryptoSession(peerKey, secretKey)
+    this.options  = opts
     this.hostname = hostname ?? ''
-    this.options  = opts     ?? {}
     this.verbose  = verbose  ?? false
     this.fetcher  = fetcher  ?? fetch
     return this.bind(this)
@@ -73,7 +73,7 @@ export class SecureFetch extends Function {
 
   async fetch (
     path    : RequestInfo | URL,
-    options : SecureFetchOptions
+    options : SecureFetchOptions = {}
   ) : Promise<SecureResponse> {
     if (path instanceof URL) {
       // Convert URL object to string.

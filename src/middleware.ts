@@ -90,11 +90,11 @@ async function getSessionToken (
   if (await Token.check(authorization)) {
     // Initialzie token and session object.
     req.token   = Token.import(authorization)
-    req.session = new CryptoSession(req.token.publicKey, PRIVATE_KEY)
+    req.session = new CryptoSession(req.token.pubkey, PRIVATE_KEY)
     // Add secured response helpers to the response object.
     setSecuredResponse(req, res)
   } else {
-    throw TypeError('Authorization header is undefined!')
+    throw TypeError('Bad authorization header: ' + String(authorization))
   }
 }
 

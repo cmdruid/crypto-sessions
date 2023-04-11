@@ -26,7 +26,7 @@ const encodedSchema = z
   .regex(/^[a-zA-Z0-9_-]+$/, 'Must be in base64url format.')
 
 const decodedSchema = encodedSchema
-  .transform((s : string) => Buff.b64url(s).toBytes())
+  .transform((s : string) => Buff.b64url(s))
 
 // const headerSchema = z.object({}).catchall(z.string())
 
@@ -35,7 +35,6 @@ const decodedSchema = encodedSchema
 // }).merge(headerSchema)
 
 const tokenSchema = decodedSchema
-  .refine(bytes => bytes.length === 97)
 
 const objSchema = z.object({}).catchall(z.any())
 

@@ -14,9 +14,9 @@ export class SignatureError extends Error {
   ) {
     super('Signature failed to validate!')
     this.name = 'SignatureError'
-    this.digest    = Buff.buff(digest).toStr()
-    this.publicKey = Buff.buff(publicKey).toHex()
-    this.signature = Buff.buff(signature).toHex()
+    this.digest    = Buff.raw(digest).str
+    this.publicKey = Buff.raw(publicKey).hex
+    this.signature = Buff.raw(signature).hex
     this.message   = String(message)
   }
 }

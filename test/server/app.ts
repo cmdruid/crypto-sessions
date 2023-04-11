@@ -4,7 +4,7 @@ import { useAuthWithExpress } from '../../src/middleware.js'
 
 const serverKeys = new KeyPair(process.env.CRYPTO_SESSION_KEY ?? '')
 
-export const peerKey = serverKeys.publicHex
+export const peerKey = serverKeys.pub.hex
 
 export const app: Express = express()
 
